@@ -1,0 +1,84 @@
+# default.yaml 是默认配置文件
+# 如本地开发，可另建 local.yaml 覆盖默认配置
+
+# 服务配置
+app:
+  # 服务名称
+  name: Web3RPCProxy
+  # 服务监听的 host:port
+  host: :8080
+  # keep-alive connections 的过期时间
+  idle-timeout: 30s
+  # 打印已注册路由
+  print-routes: false
+  #  是否启用prefork
+  prefork: false
+  # 启用生产模式
+  production: false
+
+# 数据库配置
+database:
+  postgres:
+    dsn: 'postgres://localhost:5432/web3rpcproxy'
+
+# redis 配置，用于数据缓存
+redis:
+  url: redis://127.0.0.1:6379
+
+# amqp 配置，启动后会自动根据以下配置创建交换机，并将请求信息发生到该交换机
+# amqp:
+#   url: amqp://localhost:5672
+#   exchange: "web3rpcproxy.query.topic"
+#   exchange-type: "topic"
+
+# 日志配置
+logger:
+  level: info
+
+# 数据缓存
+cache: 
+  results:
+    expiry_durations:
+      net_version: 1d
+      eth_chainId: 1d
+      eth_getTransactionCount: 5m
+      eth_getBlockTransactionCountByNumber: 5m
+      eth_getBlockTransactionCountByHash: 5m
+      eth_getUncleCountByBlockHash: 5m
+      eth_getUncleCountByBlockNumber: 5m
+      eth_blockNumber: 0.1s
+      eth_getBlockByNumber: 10m
+      eth_getBlockByHash: 10m
+      eth_getTransactionByHash: 10m
+      eth_getTransactionByBlockHashAndIndex: 10m
+      eth_getTransactionByBlockNumberAndIndex: 10m
+      eth_getTransactionReceipt: 10m
+      eth_getLogs: 10m
+      eth_getUncleByBlockHashAndIndex: 10m
+      eth_getUncleByBlockNumberAndIndex: 10m
+
+# 端点配置，为各链提供端点列表以供系统选择
+endpoints:
+  # 链ID
+- id: 1
+  # 链代码
+  code: eth
+  # 不同的端点类型
+  services:
+    fullnode:
+      list:
+      - url: 'https://eth-mainnet.g.alchemy.com/v2/xxxx-xxxx-xxxx-xxxx'
+    activenode:
+      list:
+      - url: 'https://api.mycryptoapi.com/eth'
+      - url: 'https://rpc.flashbots.net/'
+      - url: 'https://ethereumnodelight.app.runonflux.io'
+      - url: 'https://nodes.mewapi.io/rpc/eth'
+- id: 11155111
+  code: sepolia
+  # 为sepolia提供可用的端点列表，请在提供的端点列表中选择最好的
+  list:
+  - url: "https://rpc.sepolia.org"
+  - url: "https://rpc2.sepolia.org"
+  - url: "https://rpc-sepolia.rockx.com"
+  - url: "https://rpc.sepolia.ethpandaops.io"
