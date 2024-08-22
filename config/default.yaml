@@ -1,0 +1,85 @@
+# default.yaml is the default configuration file
+# For local development, you can create a local.yaml to override the default configuration
+
+# Service configuration
+app:
+  # Service name
+  name: "Web3 RPC Proxy"
+  # Host and port where the service listens
+  host: :8080
+  # Expiration time for keep-alive connections
+  idle-timeout: 30s
+  # Print registered routes
+  print-routes: false
+  # Whether to enable prefork
+  prefork: false
+  # Enable production mode
+  production: false
+
+# Database configuration
+database:
+  postgres:
+    dsn: 'postgres://localhost:5432/web3rpcproxy'
+
+# Redis configuration for data caching
+redis:
+  url: redis://127.0.0.1:6379
+
+# AMQP configuration, after startup, the service will automatically create an exchange 
+# based on the following configuration and send request information to this exchange
+# amqp:
+#   url: amqp://localhost:5672
+#   exchange: "web3rpcproxy.query.topic"
+#   exchange-type: "topic"
+
+# Logger configuration
+logger:
+  level: info
+
+# Data caching
+cache: 
+  results:
+    expiry_durations:
+      net_version: 1d
+      eth_chainId: 1d
+      eth_getTransactionCount: 5m
+      eth_getBlockTransactionCountByNumber: 5m
+      eth_getBlockTransactionCountByHash: 5m
+      eth_getUncleCountByBlockHash: 5m
+      eth_getUncleCountByBlockNumber: 5m
+      eth_blockNumber: 0.1s
+      eth_getBlockByNumber: 10m
+      eth_getBlockByHash: 10m
+      eth_getTransactionByHash: 10m
+      eth_getTransactionByBlockHashAndIndex: 10m
+      eth_getTransactionByBlockNumberAndIndex: 10m
+      eth_getTransactionReceipt: 10m
+      eth_getLogs: 10m
+      eth_getUncleByBlockHashAndIndex: 10m
+      eth_getUncleByBlockNumberAndIndex: 10m
+
+# Endpoint configuration, provides endpoint lists for each chain for the system to choose from
+endpoints:
+  # Chain ID
+- id: 1
+  # Chain code
+  code: eth
+  # Different types of endpoints
+  services:
+    fullnode:
+      list:
+      - url: 'https://eth-mainnet.g.alchemy.com/v2/xxxx-xxxx-xxxx-xxxx'
+    activenode:
+      list:
+      - url: 'https://api.mycryptoapi.com/eth'
+      - url: 'https://rpc.flashbots.net/'
+      - url: 'https://ethereumnodelight.app.runonflux.io'
+      - url: 'https://nodes.mewapi.io/rpc/eth'
+- id: 11155111
+  code: sepolia
+  # Provide a list of available endpoints for Sepolia, choose the best one from the provided list
+  list:
+  - url: "https://rpc.sepolia.org"
+  - url: "https://rpc2.sepolia.org"
+  - url: "https://rpc-sepolia.rockx.com"
+  - url: "https://rpc.sepolia.ethpandaops.io"
