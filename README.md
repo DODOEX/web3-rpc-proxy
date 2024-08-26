@@ -14,6 +14,8 @@
 
 ## :dart: 介绍
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/de013bb362a3436c9d1872bce5ab3c04)](https://app.codacy.com/gh/DODOEX/web3-rpc-proxy?utm_source=github.com&utm_medium=referral&utm_content=DODOEX/web3-rpc-proxy&utm_campaign=Badge_Grade)
+
 Web3 RPC Proxy 是一个支持集群部署的 EVM 区块链访问的代理中间件，旨在为用户提供最优质、最稳定、最新块高代理访问。
 
 <br>
