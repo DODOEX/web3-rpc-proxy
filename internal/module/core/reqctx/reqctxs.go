@@ -251,8 +251,9 @@ type Options interface {
 }
 
 func MakeOptionsFeature(o Options) string {
-	s := slice.Concat([]string{fmt.Sprint(o.AttemptStrategy())}, o.EndpointTypes())
-	txt := strings.Join(s, ",")
+	strategy, types := fmt.Sprint(o.AttemptStrategy()), o.EndpointTypes()
+	slice.Sort(types)
+	txt := strings.Join(slice.Concat([]string{strategy}, types), ",")
 	return helpers.Short(txt)
 }
 
