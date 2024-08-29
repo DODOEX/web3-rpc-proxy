@@ -76,16 +76,16 @@ func NewAgentService(
 ) AgentService {
 	logger = logger.With().Str("name", "agent_service").Logger()
 
+	existExpiryConfig := config.Exists("cache.results.expiry_durations")
 	_config := &agentServiceConfig{
-		DisableCache:      !config.Bool("cache.results.enable", true),
-		CacheMethods:      nil,
+		DisableCache:      config.Bool("cache.results.disable", false) || !existExpiryConfig,
 		MaxEntryCacheSize: 512 * 1024, // 512KB
 	}
 
-	if config.Exists("cache.results.methods") {
-		methods := map[string]string{}
-		config.Unmarshal("cache.results.methods", &methods)
-		_config.CacheMethods = methods
+	if existExpiryConfig {
+		expiryConfig := map[string]string{}
+		config.Unmarshal("cache.results.expiry_durations", &expiryConfig)
+		_config.CacheMethods = expiryConfig
 	}
 
 	// default cache size is 512MB
@@ -201,11 +201,7 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 	}
 
 	// 2. 如果不使用缓存，则直接调用
-	enableCache := !a.config.DisableCache && a.config.CacheMethods != nil
-	if !enableCache || !rc.Options().Caches() {
-		if !enableCache && rc.Options().Caches() {
-			a.logger.Warn().Msg("cache.enable is false, but use cache")
-		}
+	if a.config.DisableCache || !rc.Options().Caches() {
 		return handle(jsonrpcs)
 	}
 
@@ -358,7 +354,7 @@ func (a agentService) call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 	}
 
 	// 将结果写入缓存
-	if !a.config.DisableCache && a.config.CacheMethods != nil {
+	if !a.config.DisableCache{
 		for i := range results {
 			// 批量写入缓存
 			if jsonrpc, ok := slice.Find(jsonrpcs, func(_ int, jsonrpc rpc.JSONRPCer) bool {

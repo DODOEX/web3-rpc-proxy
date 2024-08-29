@@ -25,7 +25,7 @@ database:
 redis:
   url: redis://127.0.0.1:6379
 
-# AMQP configuration, after startup, the service will automatically create an exchange 
+# AMQP configuration, after startup, the service will automatically create an exchange
 # based on the following configuration and send request information to this exchange
 # amqp:
 #   url: amqp://localhost:5672
@@ -37,11 +37,11 @@ logger:
   level: info
 
 # Data caching
-cache: 
+cache:
   results:
     expiry_durations:
-      net_version: 1d
-      eth_chainId: 1d
+      net_version: 24h
+      eth_chainId: 24h
       eth_getTransactionCount: 5m
       eth_getBlockTransactionCountByNumber: 5m
       eth_getBlockTransactionCountByHash: 5m
