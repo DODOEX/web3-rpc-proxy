@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 
@@ -28,6 +29,10 @@ func NewRabbitMQ(config *config.Conf, logger zerolog.Logger) *Amqp {
 }
 
 func (a *Amqp) Connect(ctx context.Context) (err error) {
+	if !a.config.Exists("amqp.url") {
+		return errors.New("skip amqp connect, because have not amqp config!")
+	}
+
 	connectionTimeout := a.config.Duration("amqp.connection-timeout", 30*time.Second)
 
 	a.Conn, err = amqplib.DialConfig(a.config.String("amqp.url"), amqplib.Config{
