@@ -3,7 +3,7 @@ FROM golang:alpine as builder
 ENV GOPROXY https://proxy.golang.org,direct
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
-    && apk update --no-cache \ 
+    && apk update --no-cache \
     && apk add --no-cache tzdata upx openssl \
     && update-ca-certificates
 
@@ -20,7 +20,6 @@ FROM gcr.io/distroless/static:nonroot
 WORKDIR /app/
 COPY --from=builder /bin/web3rpcproxy /bin/web3rpcproxy
 COPY --from=builder --chown=nonroot /app/config /app/config
-COPY --from=builder --chown=nonroot /app/storage /app/storage
 
 EXPOSE 8080
 EXPOSE 8000
