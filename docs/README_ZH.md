@@ -15,6 +15,9 @@
   <img alt="Release Badge" src="https://img.shields.io/github/release/DODOEX/web3-rpc-proxy"/>
 </div>
 <div align="center">
+  <a href="https://www.producthunt.com/posts/web3-rpc-proxy?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-web3&#0045;rpc&#0045;proxy" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=486360&theme=light&size=small" alt="web3&#0045;rpc&#0045;proxy - A&#0032;cluster&#0045;deployable&#0032;EVM&#0032;blockchains&#0032;rpc&#0032;proxy&#0032;middleware | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+</div>
+<div align="center">
   <a href="README_ZH.md">中文</a>
   &#xa0;|&#xa0;
   <a href="../README.md">English</a>
@@ -180,13 +183,11 @@ go run ./cmd/main.go
 ![architecture](architecture.png)
 
 ## :speech_balloon: 常见问题
-- 服务为什么选择了不在配置里的端点？   
-  多个独立的服务使用不同`endpoints.yaml`配置和相同的redis，其客户端使用缓存参数时会出现这种情况。
-  建议独立的服务应使用独立的配置和redis。
-- 服务如何选择端点？  
-  根据`WEB3RPCPROXY_ETCD_ENDPOINTS_CONFIG_FILE`配置结合examination_results表的端点状态选择端点.
+
+- 如何选择端点？  
+  > 根据`WEB3RPCPROXY_ETCD_ENDPOINTS_CONFIG_FILE`配置的节点，通过计算它们的分数排序选择端点.
 - 配置优先级是？  
-  配置优先级是：`local < env < etcd < 租户配置`
+  > 配置优先级是：`local < env < etcd`
 
 <br>
 

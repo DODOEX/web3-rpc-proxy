@@ -15,6 +15,9 @@
   <img alt="Release Badge" src="https://img.shields.io/github/release/DODOEX/web3-rpc-proxy"/>
 </div>
 <div align="center">
+  <a href="https://www.producthunt.com/posts/web3-rpc-proxy?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-web3&#0045;rpc&#0045;proxy" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=486360&theme=light&size=small" alt="web3&#0045;rpc&#0045;proxy - A&#0032;cluster&#0045;deployable&#0032;EVM&#0032;blockchains&#0032;rpc&#0032;proxy&#0032;middleware | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+</div>
+<div align="center">
   <a href="docs/README_ZH.md">中文</a>
   &#xa0;|&#xa0;
   <a href="README.md">English</a>
@@ -112,22 +115,22 @@ $ curl --location --request POST 'https://localhost:8080/{{CHAIN}}' \
 ]'
 ```
 
-- `CHAIN`: Required Represents  
+- `CHAIN`: Required Represents
     the Chain ID or code of a specific blockchain, refer to the YAML configuration file below.
 ### Request Parameters:
-- `x_api_key`: Required  
+- `x_api_key`: Required
     The client must provide an API key when accessing the service, otherwise, it will be rejected with a 403 error. It can also be provided via the `X-API-KEY` header.
-- `x_api_bucket`: Optional  
+- `x_api_bucket`: Optional
     Allows the client to specify different buckets based on the situation, placing different values into different buckets for separate rate limiting. It can also be provided via the `X-API-BUCKET` header, such as using different chain IDs as bucket values to isolate rate limiting.
-- `cache`: Optional, default `true`  
+- `cache`: Optional, default `true`
     Whether to use cache, acceptable values are `true`, `false`
-- `timeout`: Optional, default `30000ms`  
+- `timeout`: Optional, default `30000ms`
     Timeout duration, if exceeded, the request returns a 408 error
 - `attempts`: Optional, default `3`
     Maximum retry attempts, 0 means no retries
-- `attempt_strategy`: Optional, default `same`  
+- `attempt_strategy`: Optional, default `same`
     The strategy for selecting endpoints during failure retries: `same` always retries the same endpoint, `rotation` alternates retries among available endpoints
-- `endpoint_type`: Optional, string, `default`  
+- `endpoint_type`: Optional, string, `default`
     Specifies the type of endpoint to select: `default` automatically selects the most suitable endpoint type based on the request method, acceptable values are `fullnode`, `activenode`
 
 For details on the JSON-RPC call body, see [JSON-RPC API METHODS](https://ethereum.org/en/developers/docs/apis/json-rpc/#json-rpc-methods)
@@ -159,8 +162,8 @@ go run ./cmd/main.go
 ### Local Debugging
 Add a configuration `config/local.yaml` in the directory to override `config/default.yaml` for local development and debugging.
 
-> [!NOTE]  
-> The endpoint configuration for each chain should be written under the `endpoints` configuration item.  
+> [!NOTE]
+> The endpoint configuration for each chain should be written under the `endpoints` configuration item.
 > See [the default configuration file](config/default.yaml)
 
 ### Technology
@@ -176,10 +179,13 @@ The project uses the following technologies:
 ![architecture](docs/architecture.png)
 
 ## :speech_balloon: FAQs
-Why does the service choose an endpoint that is not in the configuration? When multiple independent services use different `endpoints.yaml` configurations and the same redis, this can happen if the client uses the cache parameter. It is recommended that independent services use separate configurations and redis.
-How does the service select endpoints? Endpoints are selected based on the `WEB3RPCPROXY_ETCD_ENDPOINTS_CONFIG_FILE` configuration combined with the endpoint status in the examination_results table.
-What is the configuration priority? Configuration priority is: `local < env < etcd < tenant configuration`
 
+- How to select an endpoint?
+    > The endpoints are selected based on the nodes configured in WEB3RPCPROXY_ETCD_ENDPOINTS_CONFIG_FILE, and are chosen by sorting them according to their calculated scores.
+
+- What is the configuration priority?
+    > The configuration priority is: local < env < etcd.
+    
 <br>
 
 ## :busts_in_silhouette: Contribute
