@@ -21,7 +21,7 @@ import (
 type Reqctxs interface {
 	Logger() *zerolog.Logger
 	ReqID() string
-	Chain() common.Chain
+	ChainID() common.ChainId
 	Body() *[]byte
 	Options() Options
 	Config() *config.Conf
@@ -60,7 +60,7 @@ func NewReqctx(requestCtx *fasthttp.RequestCtx, cfg *config.Conf, logger zerolog
 		},
 	}
 
-	rc.logger = rc.logger.With().Str("uuid", rc.ReqID()).Str("chain", rc.Chain().Code).Logger()
+	rc.logger = rc.logger.With().Str("uuid", rc.ReqID()).Str("chain", fmt.Sprint(rc.ChainID())).Logger()
 
 	rc.profile.ID = rc.ReqID()
 	rc.profile.Method = string(requestCtx.Method())
@@ -75,7 +75,7 @@ func NewReqctx(requestCtx *fasthttp.RequestCtx, cfg *config.Conf, logger zerolog
 	if v := requestCtx.Request.Header.Peek("cf-ipcountry"); len(v) > 0 {
 		rc.profile.IPCountry = string(v)
 	}
-	rc.profile.ChainID = rc.Chain().ID
+	rc.profile.ChainID = rc.ChainID()
 
 	return rc
 }
@@ -152,7 +152,7 @@ func (c *reqctx) ReqID() string {
 	return c.uuid
 }
 
-func (c *reqctx) Chain() common.Chain {
+func (c *reqctx) ChainID() common.ChainId {
 	if c.chain == nil {
 		if v := c.Config().Get(helpers.Concat("chains.", c.requestCtx.UserValue("chain").(string))); v != nil {
 			chain := v.(common.EndpointChain)
@@ -162,10 +162,13 @@ func (c *reqctx) Chain() common.Chain {
 			}
 		} else {
 			c.chain = &common.Chain{}
+			if v, err := strconv.ParseUint(c.requestCtx.UserValue("chain").(string), 10, 64); err == nil {
+				c.chain.ID = v
+			}
 		}
 	}
 
-	return *c.chain
+	return c.chain.ID
 }
 
 func (c *reqctx) Body() *[]byte {
