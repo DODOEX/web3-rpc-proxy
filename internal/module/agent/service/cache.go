@@ -14,7 +14,7 @@ import (
 	"github.com/duke-git/lancet/v2/slice"
 )
 
-func _CacheKey(chain common.Chain, jsonrpc rpc.JSONRPCer) string {
+func _CacheKey(chainId common.ChainId, jsonrpc rpc.JSONRPCer) string {
 	params := jsonrpc.Raw()["params"]
 	if params == nil {
 		params = []any{}
@@ -23,7 +23,7 @@ func _CacheKey(chain common.Chain, jsonrpc rpc.JSONRPCer) string {
 	if b, err := json.Marshal(params); err == nil && len(b) > 0 {
 		_params = helpers.Short(string(b))
 	}
-	return strings.Join([]string{strconv.FormatUint(chain.ID, 36), jsonrpc.Method(), _params}, ":")
+	return strings.Join([]string{strconv.FormatUint(chainId, 36), jsonrpc.Method(), _params}, ":")
 }
 
 // 根据cache配置决定是否缓存，缓存过期时间，是否压缩

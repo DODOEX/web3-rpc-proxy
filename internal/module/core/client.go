@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
 	"time"
@@ -35,6 +36,7 @@ func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, endpoints []*en
 	}
 
 	var (
+		sChainId = fmt.Sprint(rc.ChainID())
 		methods  = getMethods(jsonrpcs)
 		p        = rc.Profile()
 		l        = len(endpoints)
@@ -88,8 +90,8 @@ func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, endpoints []*en
 		profile.Respond, p.Responses = true, append(p.Responses, profile)
 
 		// 记录指标
-		utils.EndpointDurations.WithLabelValues(rc.Chain().Code, url).Observe(float64(profile.Duration) / 1000.0)
-		utils.TotalEndpoints.WithLabelValues(rc.Chain().Code, url, strconv.Itoa(profile.Status)).Inc()
+		utils.EndpointDurations.WithLabelValues(sChainId, url).Observe(float64(profile.Duration) / 1000.0)
+		utils.TotalEndpoints.WithLabelValues(sChainId, url, strconv.Itoa(profile.Status)).Inc()
 		rc.Logger().Debug().Str("req-id", reqId).Msgf("%d/#%d call: %s %d %dms", rc.Options().Attempts(), i, url, profile.Status, profile.Duration)
 
 		// 得到结果，跳出循环

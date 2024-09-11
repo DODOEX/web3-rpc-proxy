@@ -1,31 +1,54 @@
 version: "3.8"
 
-networks:
-  app:
-    driver: bridge
+configs:
+  proxy_config:
+    content: |
+      providers:
+        web3-rpc-provider:
+          url: "http://web3-rpc-provider:3000/endpoints"
+          sources:
+          - ChainList
 
 services:
   postgres:
     image: postgres:alpine
     environment:
-      POSTGRES_DB: web3rpcproxy
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    networks:
-      - app
-    ports:
-      - "5432:5432"
-  example:
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_DB: web3_rpc_proxy_db
+    networks: [app-bridge]
+    ports: [5432:5432]
+
+  redis:
+    image: redis:alpine
+    ports: [6379:6379]
+    networks: [app-bridge]
+
+  # provides the free web3 rpc
+  web3-rpc-provider:
+    image: web3-rpc-provider:v1.0.0
+    networks: [app-bridge]
+    ports: [3000:3000]
+
+  web3-rpc-proxy:
     build:
       context: .
-      dockerfile: build/Dockerfile${CUSTOM}
+      dockerfile: Dockerfile
+    configs:
+      - source: proxy_config
+        target: /app/default.yaml
+        mode: 0440
     depends_on:
+      - web3-rpc-provider
       - postgres
+      - redis
     links:
+      - web3-rpc-provider
       - postgres
-    volumes:
-      - .:/app
-    networks:
-      - app
-    ports:
-      - "8080:8080"
+      - redis
+    networks: [app-bridge]
+    ports: [8080:8080]
+
+networks:
+  app-bridge:
+    driver: bridge

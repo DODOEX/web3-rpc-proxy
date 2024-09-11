@@ -16,25 +16,25 @@ app:
   # Enable production mode
   production: false
 
+# Logger configuration
+logger:
+  level: info
+
 # Database configuration
 # database:
 #   postgres:
-#     dsn: 'postgres://localhost:5432/web3rpcproxy'
+#     dsn: 'postgres://your-postgres-host:5432/your_db_name'
 
 # Redis configuration for data caching
 # redis:
-#   url: redis://127.0.0.1:6379
+#   url: 'redis://your-redis-host:6379'
 
 # AMQP configuration, after startup, the service will automatically create an exchange
 # based on the following configuration and send request information to this exchange
 # amqp:
-#   url: amqp://localhost:5672
-#   exchange: "web3rpcproxy.query.topic"
+#   url: amqp://your-mq-host:5672
+#   exchange: "your-exchange-name" # default: "web3rpcproxy.query.topic"
 #   exchange-type: "topic"
-
-# Logger configuration
-logger:
-  level: info
 
 # Tenant configuration
 # tenant:
@@ -61,6 +61,13 @@ cache:
       eth_getLogs: 10m
       eth_getUncleByBlockHashAndIndex: 10m
       eth_getUncleByBlockNumberAndIndex: 10m
+
+# Provider configuration, it will auto load external endpoints
+# providers:
+#   web3-rpc-provider:
+#     url: "http://your_host:3000/endpoints"
+#     sources:
+#     - ChainList
 
 # Endpoint configuration, provides endpoint lists for each chain for the system to choose from
 endpoints:

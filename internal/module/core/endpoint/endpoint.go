@@ -1,6 +1,8 @@
 package endpoint
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/url"
 	"sync"
 	"time"
@@ -165,6 +167,20 @@ func (e *Endpoint) Headers() map[string]string {
 }
 func (e *Endpoint) Weight() int {
 	return _int(e.Read(Weight))
+}
+func (e *Endpoint) String() string {
+	return fmt.Sprintf("[%d %s]", e.ChainID(), e.Url())
+}
+func (e *Endpoint) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		ChainID uint64 `json:"chainId"`
+		Url		string `json:"url"`
+		Weight 	int `json:"weight"`
+	}{
+		ChainID: e.ChainID(),
+		Url: e.Url().String(),
+		Weight: e.Weight(),
+	})
 }
 
 type Attributer interface {

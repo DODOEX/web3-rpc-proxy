@@ -86,10 +86,11 @@ func (a *agentController) HandleCall(ctx *fasthttp.RequestCtx) {
 		body       = []byte{}
 		status     = common.Error
 		statusCode = 500
+		rc 		   = a.getRequestContext(ctx)
+		chainId    = rc.ChainID()
 	)
 
-	rc, chainCode := a.getRequestContext(ctx), "unknown"
-	if endpoints, ok := a.endpointService.GetAll(rc.Chain().ID); !ok || len(endpoints) <= 0 {
+	if endpoints, ok := a.endpointService.GetAll(chainId); !ok || len(endpoints) <= 0 {
 		// 暂不支持该链
 		rc.Logger().Warn().Msgf("Unsupport chain: %s", fmt.Sprint(ctx.UserValue("chain")))
 		err := common.NotFoundError("Unsupported")
@@ -98,8 +99,6 @@ func (a *agentController) HandleCall(ctx *fasthttp.RequestCtx) {
 		statusCode = err.StatusCode()
 		body = err.Body()
 	} else {
-		chainCode = rc.Chain().Code
-
 		// 处理请求
 		data, err := a.call(rc, endpoints)
 
@@ -128,7 +127,7 @@ func (a *agentController) HandleCall(ctx *fasthttp.RequestCtx) {
 		}
 	}()
 
-	app, chain, p := rc.App(), rc.Chain(), rc.Profile()
+	app, p := rc.App(), rc.Profile()
 	// 记录
 	p.Status = status
 	p.Endtime = time.Now().UnixMilli()
@@ -145,16 +144,16 @@ func (a *agentController) HandleCall(ctx *fasthttp.RequestCtx) {
 	}
 
 	// 上报
-	if a.amqp.Conn != nil && chain.ID != 0 && p != nil {
-		go a.publish(chain, app, p)
+	if a.amqp.Conn != nil && chainId != 0 && p != nil {
+		go a.publish(chainId, app, p)
 	}
 
 	appName := "unknown"
 	if app != nil {
 		appName = app.Name
 	}
-	utils.TotalRequests.WithLabelValues(chainCode, appName, string(status)).Inc()
-	utils.RequestDurations.WithLabelValues(chainCode, appName).Observe(float64(p.Endtime-p.Starttime) / 1000.0)
+	utils.TotalRequests.WithLabelValues(fmt.Sprint(chainId), appName, string(status)).Inc()
+	utils.RequestDurations.WithLabelValues(fmt.Sprint(chainId), appName).Observe(float64(p.Endtime-p.Starttime) / 1000.0)
 	rc.Logger().Info().Any("status", status).TimeDiff("ms", time.UnixMilli(p.Endtime), time.UnixMilli(p.Starttime)).Msgf("%s %s %d", ctx.Method(), ctx.RequestURI(), statusCode)
 }
 
@@ -224,7 +223,7 @@ func (a agentController) getRequestContext(ctx *fasthttp.RequestCtx) reqctx.Reqc
 	return reqctx.NewReqctx(ctx, a.conf.Copy(), a.logger)
 }
 
-func (a agentController) publish(chain common.Chain, app *common.App, data *common.QueryProfile) {
+func (a agentController) publish(chainId common.ChainId, app *common.App, data *common.QueryProfile) {
 	defer func() {
 		if err := recover(); err != nil {
 			a.logger.Error().Interface("error", err).Msg("Failed to publish to amqp")
@@ -245,7 +244,7 @@ func (a agentController) publish(chain common.Chain, app *common.App, data *comm
 		appId = app.ID
 		appName = app.Name
 	}
-	key := helpers.Concat("query.", strconv.FormatUint(chain.ID, 10), ".", strconv.FormatUint(appId, 10))
+	key := helpers.Concat("query.", strconv.FormatUint(chainId, 10), ".", strconv.FormatUint(appId, 10))
 	err2 := a.amqp.Channel.Publish(a.config.AmqpExchange, key, false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        body,
@@ -253,6 +252,6 @@ func (a agentController) publish(chain common.Chain, app *common.App, data *comm
 	if err2 != nil {
 		a.logger.Error().Msg(err2.Error())
 	} else {
-		utils.TotalAmqpMessages.WithLabelValues(chain.Code, appName).Inc()
+		utils.TotalAmqpMessages.WithLabelValues(fmt.Sprint(chainId), appName).Inc()
 	}
 }

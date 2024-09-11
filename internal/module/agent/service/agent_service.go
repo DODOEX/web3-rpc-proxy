@@ -207,6 +207,7 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 
 	// 3. 从缓存中获取结果
 	var (
+		chainId   = rc.ChainID()
 		mapping   = map[string][]int{}
 		_jsonrpcs = []rpc.JSONRPCer{}
 		results   = make([]rpc.SealedJSONRPCResult, len(jsonrpcs))
@@ -216,7 +217,7 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 		var v any
 		// 读 cache
 		if ok, ttl := _WithCache(a.config.CacheMethods, jsonrpcs[i]); ok {
-			key, entry := _CacheKey(rc.Chain(), jsonrpcs[i]), &CacheEntry{}
+			key, entry := _CacheKey(chainId, jsonrpcs[i]), &CacheEntry{}
 			err := _GetCache(a.cache, key, entry)
 			if err == nil {
 				if time.UnixMilli(entry.T).Add(ttl).After(time.Now()) {
@@ -257,11 +258,11 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 		if v != nil {
 			// hit, 组装结果
 			results[i] = jsonrpcs[i].MakeResult(v, nil)
-			utils.TotalCaches.WithLabelValues(rc.Chain().Code, appName, jsonrpcs[i].Method(), "mem").Inc()
+			utils.TotalCaches.WithLabelValues(fmt.Sprint(chainId), appName, jsonrpcs[i].Method(), "mem").Inc()
 		} else {
 			// miss, 组装新请求
 			_jsonrpcs = append(_jsonrpcs, jsonrpcs[i])
-			utils.TotalCaches.WithLabelValues(rc.Chain().Code, appName, jsonrpcs[i].Method(), "miss").Inc()
+			utils.TotalCaches.WithLabelValues(fmt.Sprint(chainId), appName, jsonrpcs[i].Method(), "miss").Inc()
 
 			id := fmt.Sprint(jsonrpcs[i].Raw()["id"])
 			if mapping[id] == nil {
@@ -308,10 +309,11 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 }
 
 func (a agentService) call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.SealedJSONRPCResult, err error) {
+	chainId := rc.ChainID()
 	// 获取_endpoints
 	_endpoints, ok := a.es.Select(ctx, rc, endpoints, jsonrpcs)
 	if !ok || len(_endpoints) <= 0 {
-		a.logger.Error().Msgf("%s No available endpoints", rc.Chain().Code)
+		a.logger.Error().Msgf("%d No available endpoints", chainId)
 		return nil, common.InternalServerError("No available endpoints")
 	}
 
@@ -367,7 +369,7 @@ func (a agentService) call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 			}); ok && _results[i].Type() == rpc.JSONRPC_RESPONSE {
 				// 如果客户端指定使用缓存参数，才写缓存
 				if ok, _ := _WithCache(a.config.CacheMethods, *jsonrpc); ok {
-					key := _CacheKey(rc.Chain(), *jsonrpc)
+					key := _CacheKey(chainId, *jsonrpc)
 					if data, err := json.Marshal(results[i].Result); err == nil {
 						if len(data) > a.config.MaxEntryCacheSize {
 							// 压缩

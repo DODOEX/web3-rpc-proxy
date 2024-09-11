@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"math"
 	reflect "reflect"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/DODOEX/web3rpcproxy/internal/common"
 	"github.com/DODOEX/web3rpcproxy/internal/module/core/endpoint"
+	web3rpcprovider "github.com/DODOEX/web3rpcproxy/providers/web3-rpc-provider"
 	"github.com/DODOEX/web3rpcproxy/utils"
 	"github.com/DODOEX/web3rpcproxy/utils/config"
 	"github.com/DODOEX/web3rpcproxy/utils/helpers"
@@ -28,14 +30,16 @@ type endpointService struct {
 	config   *config.Conf
 	registry *prometheus.Registry
 	cache    *endpoint.Cache
+	provider *web3rpcprovider.Web3RPCProvider
 }
 
-func NewEndpointService(logger zerolog.Logger, config *config.Conf) EndpointService {
+func NewEndpointService(logger zerolog.Logger, config *config.Conf, provider *web3rpcprovider.Web3RPCProvider) EndpointService {
 	service := &endpointService{
 		logger:   logger.With().Str("name", "endpoint_service").Logger(),
 		cache:    endpoint.NewCache(),
 		config:   config,
 		registry: prometheus.DefaultRegisterer.(*prometheus.Registry),
+		provider: provider,
 	}
 
 	service.registry.MustRegister(utils.EndpointDurationSummary)
@@ -66,6 +70,9 @@ func (s *endpointService) GetAll(chain uint64) ([]*endpoint.Endpoint, bool) {
 	v, ok := s.cache.GetAll(chain)
 	if !ok {
 		v = s.load(chain)
+		for i := range v {
+			s.cache.Put(v[i])
+		}
 	}
 	return v, len(v) > 0
 }
@@ -76,47 +83,33 @@ func (s *endpointService) Purge() {
 	}
 }
 
+func mergeEndpiont(a, b *endpoint.Endpoint) *endpoint.Endpoint {
+	return endpoint.Merge(a, b)
+}
+
+func makeUniqueId(e *endpoint.Endpoint) string {
+	return fmt.Sprintf("%d%s", e.ChainID(), e.Url())
+}
+
 func (s *endpointService) load(chain uint64) []*endpoint.Endpoint {
-	mapToStates := func(infos []*common.EndpointInfo, fn func(int, *endpoint.Endpoint)) []*endpoint.Endpoint {
-		return slice.Compact(slice.Map(infos, func(i int, info *common.EndpointInfo) *endpoint.Endpoint {
-			e, err := endpoint.NewWithInfo(infos[i])
-			if err != nil {
-				return nil
-			}
-			fn(i, e)
-			return e
-		}))
+	list := make([][]*endpoint.Endpoint, 2)
+	endpoints1 := loadEndpointFromConfig(s.config, chain)
+	list[0] = endpoints1
+
+	if s.provider != nil {
+		err, endpoints2, ok := s.provider.Provide(context.Background(), chain)
+		if err != nil {
+			s.logger.Debug().Msgf("Load provider failed %v", err)
+			return endpoints1
+		}
+		if !ok {
+			s.logger.Debug().Msgf("Not found endpoints: %v", endpoints2)
+			return endpoints1
+		}
+		list[1] = endpoints2
 	}
 
-	if v := s.config.Get(helpers.Concat("chains.", fmt.Sprint(chain))); v != nil {
-		chain := v.(common.EndpointChain)
-		if (chain.Services == nil) && (chain.Endpoints == nil) {
-			return nil
-		}
-
-		if chain.Services != nil {
-			val := reflect.ValueOf(chain.Services).Elem()
-			for i := 0; i < val.NumField(); i++ {
-				if g, ok := val.Field(i).Interface().(common.EndpointList); ok {
-					return mapToStates(g.Endpoints, func(j int, e *endpoint.Endpoint) {
-						e.Update(
-							endpoint.WithAttr(endpoint.ChainId, chain.ChainID),
-							endpoint.WithAttr(endpoint.ChainCode, chain.ChainCode),
-							endpoint.WithAttr(endpoint.Type, val.Type().Field(i).Name),
-						)
-						s.cache.Put(e)
-					})
-				}
-			}
-		} else {
-			return mapToStates(chain.Endpoints, func(j int, e *endpoint.Endpoint) {
-				e.Update(endpoint.WithAttr(endpoint.ChainId, chain.ChainID))
-				s.cache.Put(e)
-			})
-		}
-	}
-
-	return nil
+	return helpers.MergeSlicesBy(mergeEndpiont, makeUniqueId, list...)
 }
 
 func (s *endpointService) refresh(d time.Duration) error {
@@ -180,6 +173,47 @@ func (s *endpointService) refresh(d time.Duration) error {
 					e.Update(ops...)
 				}
 			}
+		}
+	}
+
+	return nil
+}
+
+func loadEndpointFromConfig(config *config.Conf, chain uint64) []*endpoint.Endpoint {
+	mapToStates := func(infos []*common.EndpointInfo, fn func(int, *endpoint.Endpoint)) []*endpoint.Endpoint {
+		return slice.Compact(slice.Map(infos, func(i int, info *common.EndpointInfo) *endpoint.Endpoint {
+			e, err := endpoint.NewWithInfo(infos[i])
+			if err != nil {
+				return nil
+			}
+			fn(i, e)
+			return e
+		}))
+	}
+
+	if v := config.Get(helpers.Concat("chains.", fmt.Sprint(chain))); v != nil {
+		chain := v.(common.EndpointChain)
+		if (chain.Services == nil) && (chain.Endpoints == nil) {
+			return nil
+		}
+
+		if chain.Services != nil {
+			val := reflect.ValueOf(chain.Services).Elem()
+			for i := 0; i < val.NumField(); i++ {
+				if g, ok := val.Field(i).Interface().(common.EndpointList); ok {
+					return mapToStates(g.Endpoints, func(j int, e *endpoint.Endpoint) {
+						e.Update(
+							endpoint.WithAttr(endpoint.ChainId, chain.ChainID),
+							endpoint.WithAttr(endpoint.ChainCode, chain.ChainCode),
+							endpoint.WithAttr(endpoint.Type, val.Type().Field(i).Name),
+						)
+					})
+				}
+			}
+		} else {
+			return mapToStates(chain.Endpoints, func(j int, e *endpoint.Endpoint) {
+				e.Update(endpoint.WithAttr(endpoint.ChainId, chain.ChainID))
+			})
 		}
 	}
 

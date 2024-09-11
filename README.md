@@ -33,6 +33,7 @@ Web3 RPC Proxy is a proxy middleware for accessing EVM blockchains that supports
 ## :sparkles: Features
 
 - :zap: High concurrency, fast access
+- :raised_hands: Combined with [web3-rpc-provider](https://github.com/DODOEX/web3-rpc-provider) to automatically load available free endpoints
 - :dizzy: Flexible support for multiple chains
 - :mag: Efficient endpoint selection
 - :construction_worker: Supports distributed deployment
@@ -58,17 +59,17 @@ Web3 RPC Proxy is a proxy middleware for accessing EVM blockchains that supports
 
 ```bash
 # Build the docker image
-$ docker build ./Dockerfile -t web3rpcproxy:latest
+$ docker build ./Dockerfile -t dodozoo/web3-rpc-proxy:latest
 
 # Run the image
-$ docker run -p 8080:8080 -d web3rpcproxy:latest
+$ docker run -p 8080:8080 -d dodozoo/web3-rpc-proxy:latest
 ```
 
 Or
 
 ```bash
 # Start the service using docker compose
-$ docker compose up -d
+$ docker-compose up -d web3-rpc-proxy
 ```
 
 Modify system configuration using the following environment variables:
