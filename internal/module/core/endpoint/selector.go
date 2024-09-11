@@ -9,6 +9,7 @@ import (
 
 	"github.com/DODOEX/web3rpcproxy/internal/module/core/reqctx"
 	"github.com/DODOEX/web3rpcproxy/internal/module/core/rpc"
+	"github.com/DODOEX/web3rpcproxy/utils/helpers"
 	"github.com/duke-git/lancet/v2/slice"
 )
 
@@ -160,7 +161,7 @@ func normalizeEndpointValues(endpoints []*Endpoint, attrs []EndpointAttribute, s
 	for i := range endpoints {
 		for _, attr := range attrs {
 			v := 0.0
-			if _v, ok := endpoints[i].Read(attr).(float64); ok {
+			if _v, ok := helpers.ToFloat(endpoints[i].Read(attr)); ok {
 				v = _v
 			}
 			if maxs[attr] == 0 {
@@ -185,7 +186,7 @@ func normalizeEndpointValues(endpoints []*Endpoint, attrs []EndpointAttribute, s
 			max, min := maxs[attrs[j]], mins[attrs[j]]
 			if (max - min) > 0 {
 				v := 0.0
-				if _v, ok := endpoints[i].Read(attrs[j]).(float64); ok {
+				if _v, ok := helpers.ToFloat(endpoints[i].Read(attrs[j])); ok {
 					v = _v
 				}
 				normalized[endpoints[i]][attrs[j]] = (v - min) / (max - min) * scale
