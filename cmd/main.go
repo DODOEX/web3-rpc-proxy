@@ -9,7 +9,7 @@ import (
 
 	_ "go.uber.org/automaxprocs"
 
-	"github.com/DODOEX/web3rpcproxy/internal/bootstrap"
+	"github.com/DODOEX/web3rpcproxy/internal/app"
 )
 
 func main() {
@@ -20,5 +20,5 @@ func main() {
 		}()
 	}
 
-	bootstrap.StartCluster()
+	app.StartCluster()
 }
