@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/DODOEX/web3rpcproxy/internal/module/core/endpoint"
+	"github.com/DODOEX/web3rpcproxy/internal/core/endpoint"
 )
 
 type Client interface {

@@ -3,7 +3,7 @@ package common
 import (
 	"strings"
 
-	"github.com/DODOEX/web3rpcproxy/internal/database/schema"
+	"github.com/DODOEX/web3rpcproxy/internal/app/database/schema"
 	"github.com/knadh/koanf/maps"
 )
 
