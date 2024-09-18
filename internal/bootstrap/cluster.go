@@ -73,15 +73,17 @@ func InitCluster(
 				logger = logger.With().Str("name", "cluster").Logger()
 
 				if err := database.Connect(ctx); err != nil {
-					logger.Fatal().Err(err).Msgf("%d- An unknown error interrupted when to connect the Database!", i)
+					logger.Error().Err(err).Msgf("%d- An unknown error interrupted when to connect the Database!", i)
+				} else {
+					logger.Info().Msgf("%d- Connected the Database succesfully!", i)
 				}
-				logger.Info().Msgf("%d- Connected the Database succesfully!", i)
 				i++
 
 				if err := redis.Connect(ctx); err != nil {
-					logger.Fatal().Err(err).Msgf("%d- An unknown error interrupted when to connect the Redis!", i)
+					logger.Error().Err(err).Msgf("%d- An unknown error interrupted when to connect the Redis!", i)
+				} else {
+					logger.Info().Msgf("%d- Connected the Redis succesfully!", i)
 				}
-				logger.Info().Msgf("%d- Connected the Redis succesfully!", i)
 				i++
 
 				if err := amqp.Connect(ctx); err != nil {

@@ -17,13 +17,13 @@ app:
   production: false
 
 # Database configuration
-database:
-  postgres:
-    dsn: 'postgres://localhost:5432/web3rpcproxy'
+# database:
+#   postgres:
+#     dsn: 'postgres://localhost:5432/web3rpcproxy'
 
 # Redis configuration for data caching
-redis:
-  url: redis://127.0.0.1:6379
+# redis:
+#   url: redis://127.0.0.1:6379
 
 # AMQP configuration, after startup, the service will automatically create an exchange
 # based on the following configuration and send request information to this exchange
@@ -35,6 +35,10 @@ redis:
 # Logger configuration
 logger:
   level: info
+
+# Tenant configuration
+# tenant:
+#   enable: true # Enable tenants rate limit
 
 # Data caching
 cache:
@@ -61,25 +65,25 @@ cache:
 # Endpoint configuration, provides endpoint lists for each chain for the system to choose from
 endpoints:
   # Chain ID
-- id: 1
-  # Chain code
-  code: eth
-  # Different types of endpoints
-  services:
-    fullnode:
-      list:
-      - url: 'https://eth-mainnet.g.alchemy.com/v2/xxxx-xxxx-xxxx-xxxx'
-    activenode:
-      list:
-      - url: 'https://api.mycryptoapi.com/eth'
-      - url: 'https://rpc.flashbots.net/'
-      - url: 'https://ethereumnodelight.app.runonflux.io'
-      - url: 'https://nodes.mewapi.io/rpc/eth'
-- id: 11155111
-  code: sepolia
-  # Provide a list of available endpoints for Sepolia, choose the best one from the provided list
-  list:
-  - url: "https://rpc.sepolia.org"
-  - url: "https://rpc2.sepolia.org"
-  - url: "https://rpc-sepolia.rockx.com"
-  - url: "https://rpc.sepolia.ethpandaops.io"
+  - id: 1
+    # Chain code
+    code: eth
+    # Different types of endpoints
+    services:
+      fullnode:
+        list:
+          - url: "https://eth-mainnet.g.alchemy.com/v2/xxxx-xxxx-xxxx-xxxx"
+      activenode:
+        list:
+          - url: "https://api.mycryptoapi.com/eth"
+          - url: "https://rpc.flashbots.net/"
+          - url: "https://ethereumnodelight.app.runonflux.io"
+          - url: "https://nodes.mewapi.io/rpc/eth"
+  - id: 11155111
+    code: sepolia
+    # Provide a list of available endpoints for Sepolia, choose the best one from the provided list
+    list:
+      - url: "https://rpc.sepolia.org"
+      - url: "https://rpc2.sepolia.org"
+      - url: "https://rpc-sepolia.rockx.com"
+      - url: "https://rpc.sepolia.ethpandaops.io"

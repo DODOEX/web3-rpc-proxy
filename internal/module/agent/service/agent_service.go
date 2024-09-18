@@ -249,14 +249,19 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 			}
 		}
 
+		appName := "unknown"
+		if rc.App() != nil {
+			appName = rc.App().Name
+		}
+
 		if v != nil {
 			// hit, 组装结果
 			results[i] = jsonrpcs[i].MakeResult(v, nil)
-			utils.TotalCaches.WithLabelValues(rc.Chain().Code, rc.App().Name, jsonrpcs[i].Method(), "mem").Inc()
+			utils.TotalCaches.WithLabelValues(rc.Chain().Code, appName, jsonrpcs[i].Method(), "mem").Inc()
 		} else {
 			// miss, 组装新请求
 			_jsonrpcs = append(_jsonrpcs, jsonrpcs[i])
-			utils.TotalCaches.WithLabelValues(rc.Chain().Code, rc.App().Name, jsonrpcs[i].Method(), "miss").Inc()
+			utils.TotalCaches.WithLabelValues(rc.Chain().Code, appName, jsonrpcs[i].Method(), "miss").Inc()
 
 			id := fmt.Sprint(jsonrpcs[i].Raw()["id"])
 			if mapping[id] == nil {

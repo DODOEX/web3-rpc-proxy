@@ -22,14 +22,21 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type agentControllerConfig struct {
+	EnableTenantFeature bool
+	AmqpExchange  string
+}
+
+
 type agentController struct {
 	logger          zerolog.Logger
-	config          *config.Conf
+	conf            *config.Conf
 	amqp            *shared.Amqp
 	application     *application.Application
 	agentService    service.AgentService
 	tenantService   service.TenantService
 	endpointService service.EndpointService
+	config 			agentControllerConfig
 }
 
 type AgentController interface {
@@ -38,7 +45,7 @@ type AgentController interface {
 
 func NewAgentController(
 	logger zerolog.Logger,
-	config *config.Conf,
+	conf *config.Conf,
 	application *application.Application,
 	amqp *shared.Amqp,
 	agentService service.AgentService,
@@ -47,12 +54,16 @@ func NewAgentController(
 ) AgentController {
 	controller := &agentController{
 		application:     application,
-		config:          config,
+		conf:          conf,
 		amqp:            amqp,
 		logger:          logger.With().Str("name", "agent_controller").Logger(),
 		agentService:    agentService,
 		tenantService:   tenantService,
 		endpointService: endpointService,
+		config: agentControllerConfig{
+			EnableTenantFeature: conf.Bool("tenant.enable", false),
+			AmqpExchange: conf.String("amqp.exchange", "web3rpcproxy.query.topic"),
+		},
 	}
 
 	return controller
@@ -152,7 +163,7 @@ func (a agentController) call(rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint)
 	defer cancel()
 
 	// 解析 app
-	if rc.App() == nil {
+	if a.config.EnableTenantFeature && rc.App() == nil {
 		app, err := a.getTenantApp(ctx, rc)
 		if common.IsHTTPErrors(err) {
 			rc.Logger().Error().Str(zerolog.ErrorFieldName, err.(common.HTTPErrors).String()).Send()
@@ -210,7 +221,7 @@ func (a agentController) getTenantApp(ctx context.Context, reqctx reqctx.Reqctxs
 
 // func (_i agentService) getRequestContext(ctx *fasthttp.RequestCtx, c net.Conn) reqctx.Reqctxs {
 func (a agentController) getRequestContext(ctx *fasthttp.RequestCtx) reqctx.Reqctxs {
-	return reqctx.NewReqctx(ctx, a.config.Copy(), a.logger)
+	return reqctx.NewReqctx(ctx, a.conf.Copy(), a.logger)
 }
 
 func (a agentController) publish(chain common.Chain, app *common.App, data *common.QueryProfile) {
@@ -235,7 +246,7 @@ func (a agentController) publish(chain common.Chain, app *common.App, data *comm
 		appName = app.Name
 	}
 	key := helpers.Concat("query.", strconv.FormatUint(chain.ID, 10), ".", strconv.FormatUint(appId, 10))
-	err2 := a.amqp.Channel.Publish(a.config.String("amqp.exchange", "web3rpcproxy.query.topic"), key, false, false, amqp.Publishing{
+	err2 := a.amqp.Channel.Publish(a.config.AmqpExchange, key, false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        body,
 	})
