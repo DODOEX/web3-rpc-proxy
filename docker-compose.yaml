@@ -1,51 +1,55 @@
-version: "3.8"
+name: web3app
 
 configs:
   proxy_config:
     content: |
       providers:
         web3-rpc-provider:
-          url: "http://web3-rpc-provider:3000/endpoints"
+          url: "http://provider:3000/endpoints"
           sources:
           - ChainList
+      logger:
+        level: info
 
 services:
-  postgres:
-    image: postgres:alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "123456"
-      POSTGRES_DB: web3_rpc_proxy_db
-    networks: [app-bridge]
-    ports: [5432:5432]
+  # Enable when you need tenant isolation and rate limiting
+  # postgres:
+  #   image: postgres:16.4-alpine
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: "123456"
+  #     POSTGRES_DB: web3_rpc_proxy_db
+  #   networks: [app-bridge]
+  #   ports: [5432:5432]
 
-  redis:
-    image: redis:alpine
-    ports: [6379:6379]
-    networks: [app-bridge]
+  # Enable when you need tenant isolation and rate limiting
+  # redis:
+  #   image: redis:7.4.0-alpine
+  #   ports: [6379:6379]
+  #   networks: [app-bridge]
 
-  # provides the free web3 rpc
-  web3-rpc-provider:
-    image: web3-rpc-provider:v1.0.0
+  # Provides the free web3 rpc
+  provider:
+    image: dodozoo/we3-rpc-provider:v1.0.0
     networks: [app-bridge]
     ports: [3000:3000]
 
-  web3-rpc-proxy:
+  proxy:
     build:
       context: .
       dockerfile: Dockerfile
     configs:
       - source: proxy_config
-        target: /app/default.yaml
-        mode: 0440
+        target: /app/config/default.yaml
+        mode: 0666
     depends_on:
-      - web3-rpc-provider
-      - postgres
-      - redis
+      - provider
+      # - postgres
+      # - redis
     links:
-      - web3-rpc-provider
-      - postgres
-      - redis
+      - provider
+      # - postgres
+      # - redis
     networks: [app-bridge]
     ports: [8080:8080]
 

@@ -69,7 +69,7 @@ Or
 
 ```bash
 # Start the service using docker compose
-$ docker-compose up -d web3-rpc-proxy
+$ docker-compose up
 ```
 
 Modify system configuration using the following environment variables:
