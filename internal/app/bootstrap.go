@@ -63,6 +63,7 @@ func InitCluster(
 	amqp *shared.Amqp,
 	etcd *clientv3.Client,
 	redis *shared.RedisClient,
+	redisScripts shared.Scripts,
 	watcher *shared.WatcherClient,
 	ecf *endpoint.ClientFactory,
 	router *Router,
@@ -85,6 +86,9 @@ func InitCluster(
 				if err := redis.Connect(ctx); err != nil {
 					logger.Error().Err(err).Msgf("%d- An unknown error interrupted when to connect the Redis!", i)
 				} else {
+					if err := redisScripts.Init(ctx); err != nil {
+						logger.Error().Err(err).Msgf("%d- An unknown error interrupted when to connect the Redis Scripts!", i)
+					}
 					logger.Info().Msgf("%d- Connected the Redis succesfully!", i)
 				}
 				i++

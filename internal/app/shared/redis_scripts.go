@@ -9,6 +9,7 @@ import (
 )
 
 type Scripts interface {
+	Init(ctx context.Context) error
 	Balance(ctx context.Context, key string, capacity int64, rate int64) (int64, error)
 }
 
@@ -24,11 +25,16 @@ func NewRedisScripts(rdb *RedisClient, logger zerolog.Logger) Scripts {
 		logger:  logger,
 		balance: rdbscripts.GetBalanceScript(),
 	}
-	logger.Debug().Msgf("Redis scripts: balance=%s", rs.balance.Hash())
 	return rs
 }
 
+func (s *scripts) Init(ctx context.Context) error {
+	result := s.balance.Load(context.Background(), s.rdb.Client)
+	s.logger.Debug().Msgf("Redis scripts: balance=%s", s.balance.Hash())
+	return result.Err()
+}
+
 func (s *scripts) Balance(ctx context.Context, key string, capacity int64, rate int64) (int64, error) {
-	balance, err := s.balance.Eval(ctx, s.rdb.Client, []string{key}, capacity, rate).Int64()
+	balance, err := s.balance.Run(ctx, s.rdb.Client, []string{key}, capacity, rate).Int64()
 	return balance, err
 }
