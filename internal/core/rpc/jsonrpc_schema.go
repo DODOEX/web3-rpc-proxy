@@ -6,8 +6,7 @@ import (
 	"log"
 	"strconv"
 
-	"encoding/json"
-
+	"github.com/bytedance/sonic"
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -38,13 +37,13 @@ type Method struct {
 }
 
 type Param struct {
-	Schema json.RawMessage `json:"schema"`
-	Name   string          `json:"name"`
+	Schema sonic.NoCopyRawMessage `json:"schema"`
+	Name   string                 `json:"name"`
 }
 
 type Result struct {
-	Schema json.RawMessage `json:"schema"`
-	Name   string          `json:"name"`
+	Schema sonic.NoCopyRawMessage `json:"schema"`
+	Name   string                 `json:"name"`
 }
 
 func NewJSONRPCSchema(b []byte) *JSONRPCSchema {
@@ -61,7 +60,7 @@ func NewJSONRPCSchema(b []byte) *JSONRPCSchema {
 
 	// 解析 OpenRPC 规范
 	var openrpcSchema OpenRPCSchema
-	if err := json.Unmarshal(b, &openrpcSchema); err != nil {
+	if err := sonic.Unmarshal(b, &openrpcSchema); err != nil {
 		log.Fatalf("Error parsing OpenRPC schema: %v", err)
 	}
 

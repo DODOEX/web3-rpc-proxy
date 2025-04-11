@@ -1,6 +1,6 @@
 package general
 
-import "encoding/json"
+import "github.com/bytedance/sonic"
 
 func Min(a, b int) int {
 	if a < b {
@@ -23,7 +23,7 @@ func ByteLength(v any) int {
 	case string:
 		return len([]byte(v.(string)))
 	default:
-		b, _ := json.Marshal(v)
+		b, _ := sonic.Marshal(v)
 		return len(b)
 	}
 }

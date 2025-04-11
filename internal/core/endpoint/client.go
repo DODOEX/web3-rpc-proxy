@@ -2,7 +2,6 @@ package endpoint
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,13 +12,14 @@ import (
 	"github.com/DODOEX/web3rpcproxy/internal/common"
 	"github.com/DODOEX/web3rpcproxy/internal/core/rpc"
 	"github.com/DODOEX/web3rpcproxy/utils"
+	"github.com/bytedance/sonic"
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 )
 
 type Client interface {
-	Call(ctx context.Context, data []rpc.SealedJSONRPC, profiles ...*common.ResponseProfile) (result []rpc.JSONRPCResulter, err error)
+	Call(ctx context.Context, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (result []rpc.JSONRPCResulter, err error)
 	Close() error
 }
 
@@ -114,11 +114,11 @@ func updateMetrics(endpoint *Endpoint, profile *common.ResponseProfile) {
 	endpoint.Update(ops...)
 }
 
-func validateResults(logger zerolog.Logger, jrpcSchema *rpc.JSONRPCSchema, profile *common.ResponseProfile, data []rpc.SealedJSONRPC, results []rpc.JSONRPCResulter) error {
+func validateResults(logger zerolog.Logger, jrpcSchema *rpc.JSONRPCSchema, profile *common.ResponseProfile, data []rpc.JSONRPCer, results []rpc.JSONRPCResulter) error {
 	for i := range results {
-		if err := jrpcSchema.ValidateResponse(data[i].Method, results[i].Raw(), true); err != nil {
-			v1, _ := json.Marshal(data[i])
-			v2, _ := json.Marshal(results[i].Raw())
+		if err := jrpcSchema.ValidateResponse(data[i].Method(), results[i].Map(), true); err != nil {
+			v1, _ := sonic.Marshal(data[i])
+			v2, _ := sonic.Marshal(results[i].Map())
 			logger.Warn().Msgf("Failed to validate %s / %s", v1, v2)
 			profile.Code = "schema_validation_failed"
 			profile.Message = string(v2)

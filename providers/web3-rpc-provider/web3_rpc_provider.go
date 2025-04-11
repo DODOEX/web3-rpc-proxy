@@ -2,13 +2,13 @@ package web3rpcprovider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 
 	"github.com/DODOEX/web3rpcproxy/internal/core/endpoint"
+	"github.com/bytedance/sonic"
 )
 
 type Client interface {
@@ -73,7 +73,7 @@ func (p *Web3RPCProvider) Provide(ctx context.Context, chainIds ...uint64) (erro
 	}
 
 	rpcs := []_rpc{}
-	json.Unmarshal(body, &rpcs)
+	sonic.Unmarshal(body, &rpcs)
 
 	endpoints := []*endpoint.Endpoint{}
 

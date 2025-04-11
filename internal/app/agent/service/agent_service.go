@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DODOEX/web3rpcproxy/internal/common"
@@ -18,6 +18,7 @@ import (
 	"github.com/DODOEX/web3rpcproxy/utils/config"
 	"github.com/DODOEX/web3rpcproxy/utils/helpers"
 	"github.com/allegro/bigcache"
+	"github.com/bytedance/sonic"
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/rs/zerolog"
 )
@@ -152,13 +153,13 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 	}
 	if len(jsonrpcs) == 0 {
 		if isBatchCall {
-			return rpc.MarshalJSONRPCResults([]rpc.SealedJSONRPCResult{})
+			return []byte("[{\"id\": null}]"), nil
 		}
-		return rpc.MarshalJSONRPCResults(rpc.SealedJSONRPCResult{})
+		return []byte("{\"id\": null}"), nil
 	}
 
 	for i := range jsonrpcs {
-		if err := a.jrpcSchema.ValidateRequest(jsonrpcs[i].Method(), jsonrpcs[i].Raw()); err != nil {
+		if err = a.jrpcSchema.ValidateRequest(jsonrpcs[i].Method(), jsonrpcs[i].Map()); err != nil {
 			return nil, common.BadRequestError(err.Error(), err)
 		}
 	}
@@ -167,21 +168,21 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 	dispatch := func(data []rpc.JSONRPCer) (any, error) {
 		if len(data) == 0 {
 			if isBatchCall {
-				return []rpc.SealedJSONRPCResult{}, nil
+				return []rpc.JSONRPCResulter{}, nil
 			}
-			return rpc.SealedJSONRPCResult{}, nil
+			return rpc.NewJSONRPC(), nil
 		}
 
 		// 批量调用
-		results, err := a.call(ctx, rc, endpoints, data)
+		results, _err := a.call(ctx, rc, endpoints, data)
 
-		if err != nil {
-			return nil, err
+		if _err != nil {
+			return nil, _err
 		}
 
 		// - 返回异常结果
 		// - 返回单个调用的结果
-		if !isBatchCall || (len(results) == 1 && results[0].Error != nil) {
+		if !isBatchCall || (len(results) == 1 && results[0].Error() != nil) {
 			return results[0], nil
 		}
 
@@ -191,13 +192,13 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 
 	// 处理调用请求
 	handle := func(_jsonrpcs []rpc.JSONRPCer) ([]byte, error) {
-		results, err := dispatch(_jsonrpcs)
+		results, _err := dispatch(_jsonrpcs)
 
-		if err != nil {
-			return nil, err
+		if _err != nil {
+			return nil, _err
 		}
 
-		return rpc.MarshalJSONRPCResults(results)
+		return sonic.Marshal(results)
 	}
 
 	// 2. 如果不使用缓存，则直接调用
@@ -210,7 +211,7 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 		chainId   = rc.ChainID()
 		mapping   = map[string][]int{}
 		_jsonrpcs = []rpc.JSONRPCer{}
-		results   = make([]rpc.SealedJSONRPCResult, len(jsonrpcs))
+		results   = make([]rpc.JSONRPCResulter, len(jsonrpcs))
 	)
 
 	for i := 0; i < len(jsonrpcs); i++ {
@@ -218,14 +219,14 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 		// 读 cache
 		if ok, ttl := _WithCache(a.config.CacheMethods, jsonrpcs[i]); ok {
 			key, entry := _CacheKey(chainId, jsonrpcs[i]), &CacheEntry{}
-			err := _GetCache(a.cache, key, entry)
+			err = _GetCache(a.cache, key, entry)
 			if err == nil {
 				if time.UnixMilli(entry.T).Add(ttl).After(time.Now()) {
 					// 解压
 					if entry.compressed {
-						if _v, err := helpers.Decompress(entry.V.([]byte)); err != nil {
-							rc.Logger().Warn().Err(err).Msgf("Failed to compress cache %s", jsonrpcs[i].Method())
-						} else if err = json.Unmarshal(_v, &v); err != nil {
+						if _v, _err := helpers.Decompress(entry.V.([]byte)); _err != nil {
+							rc.Logger().Warn().Err(_err).Msgf("Failed to compress cache %s", jsonrpcs[i].Method())
+						} else if err = sonic.Unmarshal(_v, &v); err != nil {
 							rc.Logger().Warn().Err(err).Msgf("Failed to unmarshal cache %s", jsonrpcs[i].Method())
 						}
 					} else {
@@ -239,7 +240,7 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 						if height := endpoint.BlockNumber(); height > 0 {
 							if v == nil {
 								v = height
-							} else if n, err := strconv.ParseUint(v.(string), 16, 64); err == nil {
+							} else if n, _err := strconv.ParseUint(v.(string), 16, 64); _err == nil {
 								v = slices.Max([]uint64{height, n})
 							}
 						}
@@ -255,16 +256,17 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 			appName = rc.App().Name
 		}
 
+		method := strings.Clone(jsonrpcs[i].Method())
 		if v != nil {
 			// hit, 组装结果
 			results[i] = jsonrpcs[i].MakeResult(v, nil)
-			utils.TotalCaches.WithLabelValues(fmt.Sprint(chainId), appName, jsonrpcs[i].Method(), "mem").Inc()
+			utils.TotalCaches.WithLabelValues(fmt.Sprint(chainId), appName, method, "mem").Inc()
 		} else {
 			// miss, 组装新请求
 			_jsonrpcs = append(_jsonrpcs, jsonrpcs[i])
-			utils.TotalCaches.WithLabelValues(fmt.Sprint(chainId), appName, jsonrpcs[i].Method(), "miss").Inc()
+			utils.TotalCaches.WithLabelValues(fmt.Sprint(chainId), appName, method, "miss").Inc()
 
-			id := fmt.Sprint(jsonrpcs[i].Raw()["id"])
+			id := jsonrpcs[i].ID()
 			if mapping[id] == nil {
 				mapping[id] = []int{}
 			}
@@ -275,9 +277,9 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 	// 直接返回缓存结果
 	if len(_jsonrpcs) <= 0 {
 		if isBatchCall {
-			return rpc.MarshalJSONRPCResults(results)
+			return sonic.Marshal(results)
 		} else if len(results) > 0 {
-			return rpc.MarshalJSONRPCResults(results[0])
+			return results[0].MarshalJSON()
 		}
 	}
 
@@ -289,26 +291,26 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 	}
 
 	// 将请求结果填充到最终结果中
-	if _results, ok := data.([]rpc.SealedJSONRPCResult); ok {
+	if _results, ok := data.([]rpc.JSONRPCResulter); ok {
 		for i := range _results {
-			indexes := mapping[fmt.Sprint(_results[i].ID)]
+			indexes := mapping[_results[i].ID()]
 
 			for _, index := range indexes {
 				// 如果已经有缓存结果，则跳过
-				if results[index].Result != nil {
+				if results[index] != nil {
 					continue
 				}
 				results[index] = _results[i]
 			}
 		}
 
-		return rpc.MarshalJSONRPCResults(results)
+		return sonic.Marshal(results)
 	}
 
-	return rpc.MarshalJSONRPCResults(data)
+	return sonic.Marshal(data)
 }
 
-func (a agentService) call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.SealedJSONRPCResult, err error) {
+func (a agentService) call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.JSONRPCResulter, err error) {
 	chainId := rc.ChainID()
 	// 获取_endpoints
 	_endpoints, ok := a.es.Select(ctx, rc, endpoints, jsonrpcs)
@@ -320,12 +322,12 @@ func (a agentService) call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 	// 改写 ID
 	var (
 		prefix    = helpers.Short(rc.ReqID())
-		_jsonrpcs = []rpc.SealedJSONRPC{}
+		_jsonrpcs = make([]rpc.JSONRPCer, len(jsonrpcs))
 	)
 	for i := range jsonrpcs {
-		_jsonrpc := jsonrpcs[i].Seal()
-		_jsonrpc.ID += prefix + _jsonrpc.ID
-		_jsonrpcs = append(_jsonrpcs, _jsonrpc)
+		_jsonrpcs[i] = jsonrpcs[i].Clone(map[string]any{
+			"id": prefix + jsonrpcs[i].ID(),
+		}).(rpc.JSONRPCer)
 	}
 
 	// 请求节点（没有命中缓存的jsonrpc）
@@ -334,77 +336,82 @@ func (a agentService) call(ctx context.Context, rc reqctx.Reqctxs, endpoints []*
 	if err != nil {
 		return nil, err
 	}
+	// 空结果和异常结果直接返回
+	if len(_results) <= 0 || (len(_results) == 1 && _results[0].Error() != nil) {
+		return _results, nil
+	}
 
 	// 绑定 jsonrpc, 方便json.Marshal()时， jsonrpc, id 与jsonrpcs保持一致
-	results = make([]rpc.SealedJSONRPCResult, len(_results))
-	for i := range _results {
-		if j := slices.IndexFunc(_jsonrpcs, func(_jsonrpc rpc.SealedJSONRPC) bool {
-			return _jsonrpc.ID == _results[i].ID()
-		}); j >= 0 {
-			results[i] = jsonrpcs[j].MakeResult(_results[i].Result(), _results[i].Error())
-		} else {
-			results[i] = rpc.SealedJSONRPCResult{}
-
-			if _results[i].ID() != "" {
-				results[i].ID = _results[i].ID()
-			}
-			if _results[i].Version() != "" {
-				results[i].Version = _results[i].Version()
-			}
-			if _results[i].Result() != nil {
-				results[i].Result = _results[i].Result()
-			}
-			if _results[i].Error() != nil {
-				results[i].Error = _results[i].Error()
+	results = make([]rpc.JSONRPCResulter, len(_results))
+	if len(jsonrpcs) == 1 && len(_results) == 1 {
+		results[0] = jsonrpcs[0].MakeResult(_results[0].Result(), _results[0].Error())
+	} else if len(_results) > 1 {
+		for i := range _results {
+			if j := slices.IndexFunc(_jsonrpcs, func(_jsonrpc rpc.JSONRPCer) bool {
+				return _jsonrpc.ID() == _results[i].ID()
+			}); j > -1 {
+				results[i] = jsonrpcs[j].MakeResult(_results[i].Result(), _results[i].Error())
 			}
 		}
 	}
 
-	// 将结果写入缓存
+	// 将结果批量写入缓存
 	if !a.config.DisableCache {
 		for i := range results {
-			// 批量写入缓存
-			if jsonrpc, ok := slice.Find(jsonrpcs, func(_ int, jsonrpc rpc.JSONRPCer) bool {
-				return jsonrpc.Raw()["id"] == results[i].ID
-			}); ok && _results[i].Type() == rpc.JSONRPC_RESPONSE {
-				// 如果客户端指定使用缓存参数，才写缓存
-				if ok, _ := _WithCache(a.config.CacheMethods, *jsonrpc); ok {
-					key := _CacheKey(chainId, *jsonrpc)
-					if data, err := json.Marshal(results[i].Result); err == nil {
-						if len(data) > a.config.MaxEntryCacheSize {
-							// 压缩
-							go func(k string, v []byte) {
-								defer func() {
-									if err := recover(); err != nil {
-										a.logger.Error().Interface("error", err).Msg("Failed to set cache result")
-									}
-								}()
+			if results[i].Type() != rpc.JSONRPC_RESPONSE {
+				continue
+			}
 
-								if compressed, err := helpers.Compress(v); err != nil {
-									a.logger.Error().Err(err).Msg("Failed to compress")
-								} else {
-									// skip set cache, data is bigger than cache size after compression
-									if len(compressed) > a.config.MaxEntryCacheSize {
-										return
-									}
-									v = compressed
-								}
+			jsonrpc, ok := slice.Find(jsonrpcs, func(_ int, jsonrpc rpc.JSONRPCer) bool {
+				return jsonrpc.ID() == results[i].ID()
+			})
+			if !ok {
+				continue
+			}
 
-								// 写内存
-								if err := _SetCache(a.cache, k, &CacheEntry{V: v, T: time.Now().UnixMilli(), compressed: true}); err != nil {
-									a.logger.Error().Err(err).Msg("Cache set error")
-								}
-							}(key, data)
-						} else {
-							if err := _SetCache(a.cache, key, &CacheEntry{V: results[i].Result, T: time.Now().UnixMilli()}); err != nil {
-								a.logger.Error().Err(err).Msg("Cache set error")
-							}
+			// 根据配置，判断是否需要缓存
+			ok, _ = _WithCache(a.config.CacheMethods, *jsonrpc)
+			if !ok {
+				continue
+			}
+
+			key := _CacheKey(chainId, *jsonrpc)
+			data, err := sonic.Marshal(results[i].Result())
+			if err != nil {
+				continue
+			}
+
+			if len(data) > a.config.MaxEntryCacheSize {
+				// 压缩
+				go func(k string, v []byte) {
+					defer func() {
+						if err := recover(); err != nil {
+							a.logger.Error().Interface("error", err).Msg("Failed to set cache result")
 						}
+					}()
 
-						a.logger.Debug().Msgf("Cache capacity: %d, len: %d", a.cache.Capacity(), a.cache.Len())
+					if compressed, err := helpers.Compress(v); err != nil {
+						a.logger.Error().Err(err).Msg("Failed to compress")
+					} else {
+						// skip set cache, data is bigger than cache size after compression
+						if len(compressed) > a.config.MaxEntryCacheSize {
+							return
+						}
+						v = compressed
 					}
+
+					// 写内存
+					if err := _SetCache(a.cache, k, &CacheEntry{V: v, T: time.Now().UnixMilli(), compressed: true}); err != nil {
+						a.logger.Error().Err(err).Msg("Cache set error")
+					}
+				}(key, data)
+			} else {
+				if err := _SetCache(a.cache, key, &CacheEntry{V: results[i].Result(), T: time.Now().UnixMilli()}); err != nil {
+					a.logger.Error().Err(err).Msg("Cache set error")
 				}
 			}
+
+			a.logger.Debug().Msgf("Cache capacity: %d, len: %d", a.cache.Capacity(), a.cache.Len())
 		}
 	}
 

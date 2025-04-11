@@ -3,7 +3,6 @@ package endpoint
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/DODOEX/web3rpcproxy/internal/common"
 	"github.com/DODOEX/web3rpcproxy/internal/core/rpc"
+	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 )
 
@@ -94,8 +94,8 @@ func (e *httpClient) request(ctx context.Context, b []byte) (*http.Response, com
 }
 
 // Call implements Endpoint.
-func (e *httpClient) Call(ctx context.Context, data []rpc.SealedJSONRPC, profiles ...*common.ResponseProfile) (results []rpc.JSONRPCResulter, err error) {
-	b, err := json.Marshal(data)
+func (e *httpClient) Call(ctx context.Context, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (results []rpc.JSONRPCResulter, err error) {
+	b, err := sonic.Marshal(data)
 	if err != nil {
 		return nil, common.InternalServerError("Marshalling request failed", err)
 	}

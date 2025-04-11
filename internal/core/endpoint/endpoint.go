@@ -1,7 +1,6 @@
 package endpoint
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"sync"
@@ -10,6 +9,7 @@ import (
 	"github.com/DODOEX/web3rpcproxy/internal/common"
 	"github.com/DODOEX/web3rpcproxy/internal/core/reqctx"
 	"github.com/DODOEX/web3rpcproxy/utils"
+	"github.com/bytedance/sonic"
 )
 
 type Endpoint struct {
@@ -172,14 +172,14 @@ func (e *Endpoint) String() string {
 	return fmt.Sprintf("[%d %s]", e.ChainID(), e.Url())
 }
 func (e *Endpoint) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
+	return sonic.Marshal(struct {
 		ChainID uint64 `json:"chainId"`
-		Url		string `json:"url"`
-		Weight 	int `json:"weight"`
+		Url     string `json:"url"`
+		Weight  int    `json:"weight"`
 	}{
 		ChainID: e.ChainID(),
-		Url: e.Url().String(),
-		Weight: e.Weight(),
+		Url:     e.Url().String(),
+		Weight:  e.Weight(),
 	})
 }
 

@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"github.com/DODOEX/web3rpcproxy/utils"
 	"github.com/DODOEX/web3rpcproxy/utils/config"
 	"github.com/DODOEX/web3rpcproxy/utils/helpers"
+	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog"
 	"github.com/streadway/amqp"
 	"github.com/valyala/fasthttp"
@@ -231,7 +231,7 @@ func (a agentController) publish(chainId common.ChainId, app *common.App, data *
 		a.logger.Error().Msg("connection is closed, skip amqp publish!")
 		return
 	}
-	body, err1 := json.Marshal(data)
+	body, err1 := sonic.Marshal(data)
 	if err1 != nil {
 		a.logger.Error().Msg(err1.Error())
 	}

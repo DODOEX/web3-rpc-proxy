@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"strings"
 	"sync"
@@ -16,6 +15,7 @@ import (
 	"github.com/DODOEX/web3rpcproxy/utils/config"
 	"github.com/DODOEX/web3rpcproxy/utils/helpers"
 	"github.com/allegro/bigcache"
+	"github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
@@ -97,7 +97,7 @@ func (s *tenantService) cacheTenantInfo(ctx context.Context, info *common.Tenant
 		}
 	}()
 
-	data, err := json.Marshal(info)
+	data, err := sonic.Marshal(info)
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (s *tenantService) getTenantInfo(ctx context.Context, token string) (*commo
 
 	var info common.TenantInfo
 	if len(data) > 0 {
-		if err := json.Unmarshal(data, &info); err == nil {
+		if err = sonic.Unmarshal(data, &info); err == nil {
 			return &info, nil
 		}
 		logger.Msgf("Cache unmarshal error: %v", err)
@@ -162,10 +162,9 @@ func (s *tenantService) Access(ctx context.Context, token, bucket string) (*comm
 	app := &common.App{}
 	err := _GetCache(s.cache, key, app)
 	if err != nil {
-		info, err := s.getTenantInfo(ctx, token)
-
-		if err != nil {
-			return nil, err
+		info, _err := s.getTenantInfo(ctx, token)
+		if _err != nil {
+			return nil, _err
 		}
 
 		app = &common.App{
@@ -242,7 +241,7 @@ func (s *tenantService) debounce(app *common.App) error {
 		app.LastTime = 0
 	}
 
-	if v, err := json.Marshal(app); err == nil {
+	if v, err := sonic.Marshal(app); err == nil {
 		err = s.cache.Set(key, v)
 		if err != nil {
 			s.logger.Error().Err(err).Msg("Cache update error")

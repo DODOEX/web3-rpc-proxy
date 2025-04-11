@@ -2,9 +2,7 @@ package endpoint
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -15,6 +13,7 @@ import (
 	"github.com/DODOEX/web3rpcproxy/internal/common"
 	"github.com/DODOEX/web3rpcproxy/internal/core/rpc"
 	"github.com/DODOEX/web3rpcproxy/utils/helpers"
+	"github.com/bytedance/sonic"
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
@@ -277,16 +276,16 @@ func (e *websocketClient) request(ctx context.Context, key string, b []byte) ([]
 	}
 }
 
-func getJSONRPCKey(data []rpc.SealedJSONRPC) string {
-	ids := slice.Map(data, func(i int, jsonrpc rpc.SealedJSONRPC) string {
-		return fmt.Sprint(jsonrpc.ID)
+func getJSONRPCKey(data []rpc.JSONRPCer) string {
+	ids := slice.Map(data, func(i int, jsonrpc rpc.JSONRPCer) string {
+		return jsonrpc.ID()
 	})
 	slice.Sort(ids)
 	return helpers.Short(slice.Join(ids, ""))
 }
 
-func (e *websocketClient) Call(ctx context.Context, data []rpc.SealedJSONRPC, profiles ...*common.ResponseProfile) (results []rpc.JSONRPCResulter, err error) {
-	b, err := json.Marshal(data)
+func (e *websocketClient) Call(ctx context.Context, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (results []rpc.JSONRPCResulter, err error) {
+	b, err := sonic.Marshal(data)
 	if err != nil {
 		return nil, common.InternalServerError("Marshalling request failed", err)
 	}
@@ -314,7 +313,7 @@ func (e *websocketClient) Call(ctx context.Context, data []rpc.SealedJSONRPC, pr
 		return nil, err
 	}
 
-	body, err := json.Marshal(results)
+	body, err := sonic.Marshal(results)
 	if err == nil {
 		profile.Status = 200
 		profile.Traffic = len(body)

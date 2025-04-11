@@ -1,13 +1,13 @@
 package common
 
 import (
-	"encoding/json"
 	"log"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/DODOEX/web3rpcproxy/utils/helpers"
+	"github.com/bytedance/sonic"
 	"github.com/duke-git/lancet/v2/slice"
 )
 
@@ -75,7 +75,7 @@ func (e httpError) StatusCode() int {
 }
 
 func (e httpError) Body() []byte {
-	data, err := json.Marshal(e)
+	data, err := sonic.Marshal(e)
 	if err != nil {
 		log.Fatal(err)
 	}

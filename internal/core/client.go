@@ -17,7 +17,7 @@ import (
 )
 
 type Client interface {
-	Request(ctx context.Context, rc reqctx.Reqctxs, endpoint []*endpoint.Endpoint, jsonrpcs []rpc.SealedJSONRPC) (results []rpc.JSONRPCResulter, err error)
+	Request(ctx context.Context, rc reqctx.Reqctxs, endpoint []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.JSONRPCResulter, err error)
 }
 
 func NewClient(ecf *endpoint.ClientFactory) Client {
@@ -30,7 +30,7 @@ type client struct {
 	ecf *endpoint.ClientFactory
 }
 
-func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint, jsonrpcs []rpc.SealedJSONRPC) (results []rpc.JSONRPCResulter, err error) {
+func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.JSONRPCResulter, err error) {
 	if rc.Options().AttemptStrategy() == reqctx.Same {
 		endpoints = endpoints[:1]
 	}
@@ -115,9 +115,9 @@ func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, endpoints []*en
 	return results, nil
 }
 
-func getMethods(jsonrpcs []rpc.SealedJSONRPC) []string {
-	methods := slice.Map(jsonrpcs, func(i int, jsonrpc rpc.SealedJSONRPC) string {
-		return jsonrpc.Method
+func getMethods(jsonrpcs []rpc.JSONRPCer) []string {
+	methods := slice.Map(jsonrpcs, func(i int, jsonrpc rpc.JSONRPCer) string {
+		return jsonrpc.Method()
 	})
 	return methods
 }

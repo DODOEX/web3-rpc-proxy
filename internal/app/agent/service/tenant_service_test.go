@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/DODOEX/web3rpcproxy/utils/config"
 	"github.com/DODOEX/web3rpcproxy/utils/general/types"
 	"github.com/DODOEX/web3rpcproxy/utils/helpers"
+	"github.com/bytedance/sonic"
 	"github.com/go-redis/redismock/v9"
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
@@ -122,7 +122,7 @@ func TestAccessHasCache(t *testing.T) {
 
 	rscriptsmock.EXPECT().Balance(ctx, "app#:default", 100, 1).Return(int64(1), nil)
 
-	v, _ := json.Marshal(_tenant)
+	v, _ := sonic.Marshal(_tenant)
 	key := helpers.Concat("app#%s", _tenant.Token)
 	rdbmock.ExpectGet(key).SetVal(string(v))
 	rdbmock.ExpectGet(key + ":default:last").SetVal("10000")

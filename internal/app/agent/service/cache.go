@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,16 +10,14 @@ import (
 	"github.com/DODOEX/web3rpcproxy/internal/core/rpc"
 	"github.com/DODOEX/web3rpcproxy/utils/helpers"
 	"github.com/allegro/bigcache"
+	"github.com/bytedance/sonic"
 	"github.com/duke-git/lancet/v2/slice"
 )
 
 func _CacheKey(chainId common.ChainId, jsonrpc rpc.JSONRPCer) string {
-	params := jsonrpc.Raw()["params"]
-	if params == nil {
-		params = []any{}
-	}
+	params := jsonrpc.Params()
 	_params := ""
-	if b, err := json.Marshal(params); err == nil && len(b) > 0 {
+	if b, err := sonic.Marshal(params); err == nil && len(b) > 0 {
 		_params = helpers.Short(string(b))
 	}
 	return strings.Join([]string{strconv.FormatUint(chainId, 36), jsonrpc.Method(), _params}, ":")
@@ -97,7 +94,7 @@ func _WithCache(config map[string]string, jsonrpc rpc.JSONRPCer) (ok bool, ttl t
 }
 
 func _SetCache(cache *bigcache.BigCache, k string, v any) error {
-	if data, err := json.Marshal(v); err == nil {
+	if data, err := sonic.Marshal(v); err == nil {
 		err = cache.Set(k, data)
 		if err != nil {
 			return err
@@ -109,7 +106,7 @@ func _SetCache(cache *bigcache.BigCache, k string, v any) error {
 func _GetCache[T any](cache *bigcache.BigCache, k string, i T) error {
 	data, err := cache.Get(k)
 	if err == nil {
-		err = json.Unmarshal(data, i)
+		err = sonic.Unmarshal(data, i)
 	}
 	return err
 }
