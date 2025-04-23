@@ -21,6 +21,7 @@ import (
 type Reqctxs interface {
 	Logger() *zerolog.Logger
 	ReqID() string
+	Chain() *common.Chain
 	ChainID() common.ChainId
 	Body() *[]byte
 	Options() Options
@@ -153,12 +154,21 @@ func (c *reqctx) ReqID() string {
 }
 
 func (c *reqctx) ChainID() common.ChainId {
+	return c.Chain().ID
+}
+
+func (c *reqctx) Chain() *common.Chain {
 	if c.chain == nil {
 		if v := c.Config().Get(helpers.Concat("chains.", c.requestCtx.UserValue("chain").(string))); v != nil {
 			chain := v.(common.EndpointChain)
+			_type := "evm"
+			if chain.ChainType != "" {
+				_type = chain.ChainType
+			}
 			c.chain = &common.Chain{
 				ID:   chain.ChainID,
 				Code: chain.ChainCode,
+				Type: _type,
 			}
 		} else {
 			c.chain = &common.Chain{}
@@ -168,7 +178,7 @@ func (c *reqctx) ChainID() common.ChainId {
 		}
 	}
 
-	return c.chain.ID
+	return c.chain
 }
 
 func (c *reqctx) Body() *[]byte {

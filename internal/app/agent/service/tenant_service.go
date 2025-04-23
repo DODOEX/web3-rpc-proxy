@@ -160,7 +160,10 @@ func (s *tenantService) Access(ctx context.Context, token, bucket string) (*comm
 	key := _TenantKey(token, bucket)
 
 	app := &common.App{}
-	err := _GetCache(s.cache, key, app)
+	b, err := s.cache.Get(key)
+	if err == nil {
+		err = sonic.Unmarshal(b, app)
+	}
 	if err != nil {
 		info, _err := s.getTenantInfo(ctx, token)
 		if _err != nil {
@@ -171,7 +174,9 @@ func (s *tenantService) Access(ctx context.Context, token, bucket string) (*comm
 			TenantInfo: *info,
 			Bucket:     bucket,
 		}
-		_SetCache(s.cache, key, app)
+		if b, err = sonic.Marshal(app); err == nil {
+			s.cache.Set(key, b)
+		}
 	}
 
 	balance, err := s.getBalanceValue(ctx, app)

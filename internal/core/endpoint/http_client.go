@@ -94,7 +94,7 @@ func (e *httpClient) request(ctx context.Context, b []byte) (*http.Response, com
 }
 
 // Call implements Endpoint.
-func (e *httpClient) Call(ctx context.Context, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (results []rpc.JSONRPCResulter, err error) {
+func (e *httpClient) Call(ctx context.Context, adapter ChainAdapter, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (results []rpc.JSONRPCResulter, err error) {
 	b, err := sonic.Marshal(data)
 	if err != nil {
 		return nil, common.InternalServerError("Marshalling request failed", err)
@@ -155,7 +155,7 @@ func (e *httpClient) Call(ctx context.Context, data []rpc.JSONRPCer, profiles ..
 	}
 
 	if e.config.JSONRPCSchema != nil {
-		if err := validateResults(e.logger, e.config.JSONRPCSchema, profile, data, results); err != nil {
+		if err := validateResults(e.logger, adapter, profile, data, results); err != nil {
 			return nil, common.UpstreamServerError("Validating response failed", err)
 		}
 	}

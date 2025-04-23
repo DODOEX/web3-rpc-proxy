@@ -12,6 +12,7 @@ var NewSharedModule = fx.Options(
 
 	fx.Provide(NewTransport),
 	fx.Provide(NewWatcherClientInstance),
+	fx.Provide(NewGlobalCache),
 
 	fx.Provide(database.NewDatabase),
 	fx.Provide(NewRedisClient),

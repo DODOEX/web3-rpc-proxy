@@ -87,7 +87,7 @@ func (p *Web3RPCProvider) Provide(ctx context.Context, chainIds ...uint64) (erro
 			continue
 		}
 		e := endpoint.New(parsedURL)
-		e.Update(endpoint.WithAttr(endpoint.ChainId, rpcs[i].ChainId))
+		e.Update(endpoint.WithAttr(endpoint.AttributeChainId, rpcs[i].ChainId))
 		endpoints = append(endpoints, e)
 	}
 

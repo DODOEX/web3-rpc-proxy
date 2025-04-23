@@ -21,14 +21,14 @@ func New(url *url.URL) (e *Endpoint) {
 	e = &Endpoint{
 		state: make(map[string]any),
 	}
-	e.state[Type] = reqctx.EndpointType_Default
-	e.state[Url] = url
-	e.state[Health] = true
-	e.state[P95Health] = true
-	e.state[Duration] = 0
-	e.state[P95Duration] = 0
-	e.state[Count] = 0
-	e.state[LastUpdateTime] = time.Now()
+	e.state[AttributeType] = reqctx.EndpointType_Default
+	e.state[AttributeUrl] = url
+	e.state[AttributeHealth] = true
+	e.state[AttributeP95Health] = true
+	e.state[AttributeDuration] = 0
+	e.state[AttributeP95Duration] = 0
+	e.state[AttributeCount] = 0
+	e.state[AttributeLastUpdateTime] = time.Now()
 	return
 }
 
@@ -39,14 +39,14 @@ func NewWithInfo(info *common.EndpointInfo) (*Endpoint, error) {
 	}
 	e := New(parsedURL)
 	if info.Headers != nil {
-		e.state[Headers] = *info.Headers
+		e.state[AttributeHeaders] = *info.Headers
 	} else {
-		e.state[Headers] = make(map[string]string)
+		e.state[AttributeHeaders] = make(map[string]string)
 	}
 	if info.Weight != nil {
-		e.state[Weight] = *info.Weight
+		e.state[AttributeWeight] = *info.Weight
 	} else {
-		e.state[Weight] = 0
+		e.state[AttributeWeight] = 0
 	}
 	return e, nil
 }
@@ -54,19 +54,20 @@ func NewWithInfo(info *common.EndpointInfo) (*Endpoint, error) {
 type EndpointAttribute = string
 
 const (
-	ChainId        EndpointAttribute = "chain_id"
-	ChainCode      EndpointAttribute = "chain_code"
-	Type           EndpointAttribute = "type"
-	Count          EndpointAttribute = "count"
-	LastUpdateTime EndpointAttribute = "last_update_time"
-	BlockNumber    EndpointAttribute = "block_number"
-	Health         EndpointAttribute = "health"
-	Duration       EndpointAttribute = "duration" // ms
-	P95Health      EndpointAttribute = "p95_health"
-	P95Duration    EndpointAttribute = "p95_duration"
-	Url            EndpointAttribute = "url"
-	Headers        EndpointAttribute = "headers"
-	Weight         EndpointAttribute = "weight"
+	AttributeChainType      EndpointAttribute = "chain_type"
+	AttributeChainId        EndpointAttribute = "chain_id"
+	AttributeChainCode      EndpointAttribute = "chain_code"
+	AttributeType           EndpointAttribute = "type"
+	AttributeCount          EndpointAttribute = "count"
+	AttributeLastUpdateTime EndpointAttribute = "last_update_time"
+	AttributeBlockNumber    EndpointAttribute = "block_number"
+	AttributeHealth         EndpointAttribute = "health"
+	AttributeDuration       EndpointAttribute = "duration" // ms
+	AttributeP95Health      EndpointAttribute = "p95_health"
+	AttributeP95Duration    EndpointAttribute = "p95_duration"
+	AttributeUrl            EndpointAttribute = "url"
+	AttributeHeaders        EndpointAttribute = "headers"
+	AttributeWeight         EndpointAttribute = "weight"
 )
 
 func (e *Endpoint) Read(name EndpointAttribute) any {
@@ -126,47 +127,50 @@ func _ptr[T any](v any) T {
 	return t
 }
 
+func (e *Endpoint) ChainType() string {
+	return _string(e.Read(AttributeChainType))
+}
 func (e *Endpoint) ChainID() uint64 {
-	return _uint64(e.Read(ChainId))
+	return _uint64(e.Read(AttributeChainId))
 }
 func (e *Endpoint) ChainCode() string {
-	return _string(e.Read(ChainCode))
+	return _string(e.Read(AttributeChainCode))
 }
 func (e *Endpoint) Type() string {
-	return _string(e.Read(Type))
+	return _string(e.Read(AttributeType))
 }
 func (e *Endpoint) Count() uint64 {
-	return _uint64(e.Read(Count))
+	return _uint64(e.Read(AttributeCount))
 }
 func (e *Endpoint) LastUpdateTime() time.Time {
-	return _time(e.Read(LastUpdateTime))
+	return _time(e.Read(AttributeLastUpdateTime))
 }
 func (e *Endpoint) BlockNumber() uint64 {
-	return _uint64(e.Read(BlockNumber))
+	return _uint64(e.Read(AttributeBlockNumber))
 }
 func (e *Endpoint) Health() bool {
-	return _bool(e.Read(Health))
+	return _bool(e.Read(AttributeHealth))
 }
 func (e *Endpoint) Duration() float64 {
-	return _float64(e.Read(Duration))
+	return _float64(e.Read(AttributeDuration))
 }
 func (e *Endpoint) P95Health() bool {
-	return _bool(e.Read(P95Health))
+	return _bool(e.Read(AttributeP95Health))
 }
 func (e *Endpoint) P95Duration() float64 {
-	return _float64(e.Read(P95Duration))
+	return _float64(e.Read(AttributeP95Duration))
 }
 func (e *Endpoint) Url() *url.URL {
-	if _v, ok := e.Read(Url).(*url.URL); ok && _v != nil {
+	if _v, ok := e.Read(AttributeUrl).(*url.URL); ok && _v != nil {
 		return _v
 	}
 	return nil
 }
 func (e *Endpoint) Headers() map[string]string {
-	return _map(e.Read(Headers))
+	return _map(e.Read(AttributeHeaders))
 }
 func (e *Endpoint) Weight() int {
-	return _int(e.Read(Weight))
+	return _int(e.Read(AttributeWeight))
 }
 func (e *Endpoint) String() string {
 	return fmt.Sprintf("[%d %s]", e.ChainID(), e.Url())

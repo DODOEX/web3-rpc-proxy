@@ -35,6 +35,7 @@ type agentController struct {
 	tenantService   service.TenantService
 	endpointService service.EndpointService
 	config          agentControllerConfig
+	adapters        map[string]endpoint.ChainAdapter
 }
 
 type AgentController interface {
@@ -48,6 +49,7 @@ func NewAgentController(
 	agentService service.AgentService,
 	tenantService service.TenantService,
 	endpointService service.EndpointService,
+	adapters map[string]endpoint.ChainAdapter,
 ) AgentController {
 	controller := &agentController{
 		conf:            conf,
@@ -61,6 +63,7 @@ func NewAgentController(
 			EnableTenantFeature: conf.Bool("tenant.enable", false),
 			AmqpExchange:        conf.String("amqp.exchange", "web3rpcproxy.query.topic"),
 		},
+		adapters: adapters,
 	}
 
 	return controller
@@ -80,34 +83,34 @@ func NewAgentController(
 func (a *agentController) HandleCall(ctx *fasthttp.RequestCtx) {
 	// 返回结果
 	var (
-		body       = []byte{}
-		status     = common.Error
-		statusCode = 500
+		err        = common.NotFoundError("Unsupported")
+		body       = err.Body()
+		status     = err.QueryStatus()
+		statusCode = err.StatusCode()
 		rc         = a.getRequestContext(ctx)
-		chainId    = rc.ChainID()
+		chain      = rc.Chain()
 	)
 
-	if endpoints, ok := a.endpointService.GetAll(chainId); !ok || len(endpoints) <= 0 {
-		// 暂不支持该链
-		rc.Logger().Warn().Msgf("Unsupport chain: %s", fmt.Sprint(ctx.UserValue("chain")))
-		err := common.NotFoundError("Unsupported")
+	if adapter := a.adapters[chain.Type]; adapter != nil {
+		if endpoints, ok := a.endpointService.GetAll(chain.ID); ok && len(endpoints) > 0 {
+			// 处理请求
+			data, _err := a.call(rc, adapter, endpoints)
 
-		status = err.QueryStatus()
-		statusCode = err.StatusCode()
-		body = err.Body()
-	} else {
-		// 处理请求
-		data, err := a.call(rc, endpoints)
-
-		if err != nil {
-			status = err.QueryStatus()
-			statusCode = err.StatusCode()
-			body = err.Body()
-		} else {
-			statusCode = http.StatusOK
-			status = common.Success
-			body = data
+			if _err != nil {
+				status = _err.QueryStatus()
+				statusCode = _err.StatusCode()
+				body = _err.Body()
+			} else {
+				statusCode = http.StatusOK
+				status = common.Success
+				body = data
+			}
 		}
+	}
+
+	// 暂不支持该链
+	if statusCode == err.StatusCode() {
+		rc.Logger().Warn().Msgf("Unsupport chain: %s", fmt.Sprint(ctx.UserValue("chain")))
 	}
 
 	defer func() {
@@ -141,20 +144,20 @@ func (a *agentController) HandleCall(ctx *fasthttp.RequestCtx) {
 	}
 
 	// 上报
-	if a.amqp.Conn != nil && chainId != 0 && p != nil {
-		go a.publish(chainId, app, p)
+	if a.amqp.Conn != nil && chain.ID != 0 && p != nil {
+		go a.publish(chain.ID, app, p)
 	}
 
 	appName := "unknown"
 	if app != nil {
 		appName = app.Name
 	}
-	utils.TotalRequests.WithLabelValues(fmt.Sprint(chainId), appName, string(status)).Inc()
-	utils.RequestDurations.WithLabelValues(fmt.Sprint(chainId), appName).Observe(float64(p.Endtime-p.Starttime) / 1000.0)
+	utils.TotalRequests.WithLabelValues(fmt.Sprint(chain.ID), appName, string(status)).Inc()
+	utils.RequestDurations.WithLabelValues(fmt.Sprint(chain.ID), appName).Observe(float64(p.Endtime-p.Starttime) / 1000.0)
 	rc.Logger().Info().Any("status", status).TimeDiff("ms", time.UnixMilli(p.Endtime), time.UnixMilli(p.Starttime)).Msgf("%s %s %d", ctx.Method(), ctx.RequestURI(), statusCode)
 }
 
-func (a agentController) call(rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint) ([]byte, common.HTTPErrors) {
+func (a agentController) call(rc reqctx.Reqctxs, adapter endpoint.ChainAdapter, endpoints []*endpoint.Endpoint) ([]byte, common.HTTPErrors) {
 	ctx, cancel := context.WithTimeoutCause(rc, rc.Options().Timeout(), common.TimeoutError("Request timed out"))
 	defer cancel()
 
@@ -172,7 +175,7 @@ func (a agentController) call(rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint)
 	}
 
 	// 调用
-	data, err := a.agentService.Call(ctx, rc, endpoints)
+	data, err := a.agentService.Call(ctx, rc, adapter, endpoints)
 
 	if common.IsHTTPErrors(err) {
 		rc.Logger().Error().Str(zerolog.ErrorFieldName, err.(common.HTTPErrors).String()).Send()

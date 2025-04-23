@@ -209,16 +209,16 @@ func calculateEndpointScores(values map[*Endpoint]map[EndpointAttribute]float64)
 		score := 0.0
 
 		// Higher score for bigger number of block
-		score += value[BlockNumber] * 2
+		score += value[AttributeBlockNumber] * 2
 
 		// Higher score for lower duration or p99 duration
-		score += 100 - math.Min(value[Duration], value[P95Duration])
+		score += 100 - math.Min(value[AttributeDuration], value[AttributeP95Duration])
 
 		// Higher score for lower total requests (to balance the load)
-		score += 100 - (value[Count] * 1.1)
+		score += 100 - (value[AttributeCount] * 1.1)
 
 		// Higher score for bigger wight
-		score += value[Weight]
+		score += value[AttributeWeight]
 
 		if score < 0 {
 			score = 0
@@ -274,7 +274,7 @@ func (h *HeightenResponseTime) arrange(ctx context.Context, endpoints []*Endpoin
 		return endpoints, nil
 	}
 
-	values := normalizeEndpointValues(endpoints, []EndpointAttribute{BlockNumber, Duration, P95Duration, Count, Weight}, 100)
+	values := normalizeEndpointValues(endpoints, []EndpointAttribute{AttributeBlockNumber, AttributeDuration, AttributeP95Duration, AttributeCount, AttributeWeight}, 100)
 	total, scores := calculateEndpointScores(values)
 
 	if total <= 0 {

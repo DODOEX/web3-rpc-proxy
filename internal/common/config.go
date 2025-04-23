@@ -18,6 +18,7 @@ type EndpointServices = struct {
 type EndpointChain = struct {
 	ChainID   uint64 `yaml:"id" koanf:"id"`
 	ChainCode string `yaml:"code" koanf:"code"`
+	ChainType string `yaml:"type" koanf:"type"`
 
 	EndpointList `koanf:",omitempty,squash"`
 

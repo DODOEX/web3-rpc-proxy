@@ -144,11 +144,11 @@ func (e *websocketClient) connect(ctx context.Context) *websocket.Conn {
 
 		defer func() {
 			ops := []Attributer{
-				WithAttr(Health, health),
-				WithAttr(LastUpdateTime, time.Now()),
+				WithAttr(AttributeHealth, health),
+				WithAttr(AttributeLastUpdateTime, time.Now()),
 			}
 			if duration > 0 {
-				ops = append(ops, WithAttr(Duration, float64(duration)))
+				ops = append(ops, WithAttr(AttributeDuration, float64(duration)))
 			}
 			e.endpoint.Update(ops...)
 		}()
@@ -184,8 +184,8 @@ func (e *websocketClient) connect(ctx context.Context) *websocket.Conn {
 		e.logger.Warn().Msgf("Closing connection code %d and text %s", code, text)
 
 		e.endpoint.Update(
-			WithAttr(Health, false),
-			WithAttr(LastUpdateTime, time.Now()),
+			WithAttr(AttributeHealth, false),
+			WithAttr(AttributeLastUpdateTime, time.Now()),
 		)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -284,7 +284,7 @@ func getJSONRPCKey(data []rpc.JSONRPCer) string {
 	return helpers.Short(slice.Join(ids, ""))
 }
 
-func (e *websocketClient) Call(ctx context.Context, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (results []rpc.JSONRPCResulter, err error) {
+func (e *websocketClient) Call(ctx context.Context, adapter ChainAdapter, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (results []rpc.JSONRPCResulter, err error) {
 	b, err := sonic.Marshal(data)
 	if err != nil {
 		return nil, common.InternalServerError("Marshalling request failed", err)
@@ -333,7 +333,7 @@ func (e *websocketClient) Call(ctx context.Context, data []rpc.JSONRPCer, profil
 
 	// maybe includes normal results, should be validate by schema
 	if e.config.JSONRPCSchema != nil {
-		if err := validateResults(e.logger, e.config.JSONRPCSchema, profile, data, results); err != nil {
+		if err := validateResults(e.logger, adapter, profile, data, results); err != nil {
 			return nil, common.UpstreamServerError("Validating response failed", err)
 		}
 	}

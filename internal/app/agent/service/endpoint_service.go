@@ -136,12 +136,12 @@ func (s *endpointService) refresh(d time.Duration) error {
 					}
 					switch q.GetQuantile() {
 					case 0.95:
-						ops = append(ops, endpoint.WithAttr(endpoint.P95Duration, v))
+						ops = append(ops, endpoint.WithAttr(endpoint.AttributeP95Duration, v))
 						s.logger.Debug().Msgf("%s %s p95 duration: %f", e.ChainCode(), e.Url(), e.P95Duration())
 					}
 				}
 				if len(ops) > 0 {
-					ops = append(ops, endpoint.WithAttr(endpoint.LastUpdateTime, time.Now()))
+					ops = append(ops, endpoint.WithAttr(endpoint.AttributeLastUpdateTime, time.Now()))
 					e.Update(ops...)
 				}
 			}
@@ -164,12 +164,12 @@ func (s *endpointService) refresh(d time.Duration) error {
 					}
 					switch q.GetQuantile() {
 					case 0.95:
-						ops = append(ops, endpoint.WithAttr(endpoint.P95Health, v))
+						ops = append(ops, endpoint.WithAttr(endpoint.AttributeP95Health, v))
 						s.logger.Debug().Msgf("%s %s p95 status: %d", e.ChainCode(), e.Url(), int(q.GetValue()))
 					}
 				}
 				if len(ops) > 0 {
-					ops = append(ops, endpoint.WithAttr(endpoint.LastUpdateTime, time.Now()))
+					ops = append(ops, endpoint.WithAttr(endpoint.AttributeLastUpdateTime, time.Now()))
 					e.Update(ops...)
 				}
 			}
@@ -197,22 +197,32 @@ func loadEndpointFromConfig(config *config.Conf, chain uint64) []*endpoint.Endpo
 			return nil
 		}
 
+		// default chain type is evm
+		chainType := endpoint.ChainTypeEvm
+		if chain.ChainType != "" {
+			chainType = endpoint.ChainType(chain.ChainType)
+		}
+
 		if chain.Services != nil {
 			val := reflect.ValueOf(chain.Services).Elem()
 			for i := 0; i < val.NumField(); i++ {
 				if g, ok := val.Field(i).Interface().(common.EndpointList); ok {
 					return mapToStates(g.Endpoints, func(j int, e *endpoint.Endpoint) {
 						e.Update(
-							endpoint.WithAttr(endpoint.ChainId, chain.ChainID),
-							endpoint.WithAttr(endpoint.ChainCode, chain.ChainCode),
-							endpoint.WithAttr(endpoint.Type, val.Type().Field(i).Name),
+							endpoint.WithAttr(endpoint.AttributeChainId, chain.ChainID),
+							endpoint.WithAttr(endpoint.AttributeChainCode, chain.ChainCode),
+							endpoint.WithAttr(endpoint.AttributeType, chainType),
 						)
 					})
 				}
 			}
 		} else {
 			return mapToStates(chain.Endpoints, func(j int, e *endpoint.Endpoint) {
-				e.Update(endpoint.WithAttr(endpoint.ChainId, chain.ChainID))
+				e.Update(
+					endpoint.WithAttr(endpoint.AttributeChainId, chain.ChainID),
+					endpoint.WithAttr(endpoint.AttributeChainCode, chain.ChainCode),
+					endpoint.WithAttr(endpoint.AttributeType, chainType),
+				)
 			})
 		}
 	}

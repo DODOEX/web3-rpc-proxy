@@ -17,7 +17,7 @@ import (
 )
 
 type Client interface {
-	Request(ctx context.Context, rc reqctx.Reqctxs, endpoint []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.JSONRPCResulter, err error)
+	Request(ctx context.Context, rc reqctx.Reqctxs, adapter endpoint.ChainAdapter, endpoint []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.JSONRPCResulter, err error)
 }
 
 func NewClient(ecf *endpoint.ClientFactory) Client {
@@ -30,13 +30,13 @@ type client struct {
 	ecf *endpoint.ClientFactory
 }
 
-func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, endpoints []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.JSONRPCResulter, err error) {
+func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, adapter endpoint.ChainAdapter, endpoints []*endpoint.Endpoint, jsonrpcs []rpc.JSONRPCer) (results []rpc.JSONRPCResulter, err error) {
 	if rc.Options().AttemptStrategy() == reqctx.Same {
 		endpoints = endpoints[:1]
 	}
 
 	var (
-		sChainId = fmt.Sprint(rc.ChainID())
+		sChainId = fmt.Sprint(rc.Chain().ID)
 		methods  = getMethods(jsonrpcs)
 		p        = rc.Profile()
 		l        = len(endpoints)
@@ -79,10 +79,10 @@ func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, endpoints []*en
 
 		// 执行请求
 		if endpoint.Health() {
-			results, err = _client.Call(ctx, jsonrpcs, &profile)
+			results, err = _client.Call(ctx, adapter, jsonrpcs, &profile)
 		} else {
 			_ctx, cancel := context.WithTimeout(ctx, time.Duration(_timeout)*time.Millisecond)
-			results, err = _client.Call(_ctx, jsonrpcs, &profile)
+			results, err = _client.Call(_ctx, adapter, jsonrpcs, &profile)
 			cancel()
 		}
 
@@ -96,6 +96,12 @@ func (c *client) Request(ctx context.Context, rc reqctx.Reqctxs, endpoints []*en
 
 		// 得到结果，跳出循环
 		if err == nil && results != nil && !slice.Some(results, func(_ int, item rpc.JSONRPCResulter) bool { return item.Type() == rpc.JSONRPC_ERROR }) {
+			// 更新 endpoint 状态
+			for i, result := range results {
+				if result.Type() == rpc.JSONRPC_RESPONSE {
+					adapter.SetEndpointValue(jsonrpcs[i], endpoint, result.Result())
+				}
+			}
 			break
 		}
 		// 超时，跳出循环

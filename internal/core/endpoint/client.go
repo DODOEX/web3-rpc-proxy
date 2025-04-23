@@ -19,7 +19,7 @@ import (
 )
 
 type Client interface {
-	Call(ctx context.Context, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (result []rpc.JSONRPCResulter, err error)
+	Call(ctx context.Context, adapter ChainAdapter, data []rpc.JSONRPCer, profiles ...*common.ResponseProfile) (result []rpc.JSONRPCResulter, err error)
 	Close() error
 }
 
@@ -98,26 +98,26 @@ func _EndpointGauge(e *Endpoint) prometheus.Gauge {
 
 func updateMetrics(endpoint *Endpoint, profile *common.ResponseProfile) {
 	ops := []Attributer{
-		WithAttrIncrease(Count, 1),
-		WithAttr(LastUpdateTime, time.Now()),
+		WithAttrIncrease(AttributeCount, 1),
+		WithAttr(AttributeLastUpdateTime, time.Now()),
 	}
 
 	if profile.Duration > 0 {
-		ops = append(ops, WithAttr(Duration, profile.Duration*1.0))
+		ops = append(ops, WithAttr(AttributeDuration, profile.Duration*1.0))
 	}
 	if profile.Code == "" && profile.Status >= 200 && profile.Status < 300 {
-		ops = append(ops, WithAttr(Health, true))
+		ops = append(ops, WithAttr(AttributeHealth, true))
 	} else {
-		ops = append(ops, WithAttr(Health, false))
+		ops = append(ops, WithAttr(AttributeHealth, false))
 	}
 
 	endpoint.Update(ops...)
 }
 
-func validateResults(logger zerolog.Logger, jrpcSchema *rpc.JSONRPCSchema, profile *common.ResponseProfile, data []rpc.JSONRPCer, results []rpc.JSONRPCResulter) error {
+func validateResults(logger zerolog.Logger, adapter ChainAdapter, profile *common.ResponseProfile, requests []rpc.JSONRPCer, results []rpc.JSONRPCResulter) error {
 	for i := range results {
-		if err := jrpcSchema.ValidateResponse(data[i].Method(), results[i].Map(), true); err != nil {
-			v1, _ := sonic.Marshal(data[i])
+		if err := adapter.ValidateResult(requests[i], results[i], true); err != nil {
+			v1, _ := sonic.Marshal(requests[i])
 			v2, _ := sonic.Marshal(results[i].Map())
 			logger.Warn().Msgf("Failed to validate %s / %s", v1, v2)
 			profile.Code = "schema_validation_failed"

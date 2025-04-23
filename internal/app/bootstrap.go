@@ -4,11 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/DODOEX/web3rpcproxy/internal/core/endpoint"
-	"github.com/DODOEX/web3rpcproxy/internal/app/database"
+	"github.com/DODOEX/web3rpcproxy/internal/adapters"
 	"github.com/DODOEX/web3rpcproxy/internal/app/agent"
 	"github.com/DODOEX/web3rpcproxy/internal/app/agent/service"
+	"github.com/DODOEX/web3rpcproxy/internal/app/database"
 	"github.com/DODOEX/web3rpcproxy/internal/app/shared"
+	"github.com/DODOEX/web3rpcproxy/internal/core"
+	"github.com/DODOEX/web3rpcproxy/internal/core/endpoint"
+	"github.com/DODOEX/web3rpcproxy/providers"
 	"github.com/DODOEX/web3rpcproxy/utils"
 	"github.com/DODOEX/web3rpcproxy/utils/config"
 	"github.com/rs/zerolog"
@@ -32,6 +35,9 @@ func StartCluster() {
 	fx.New(
 		// provide modules
 		shared.NewSharedModule,
+		core.NewCoreModule,
+		adapters.NewAdapterModule,
+		providers.NewProviderModule,
 		agent.NewAgentModule,
 
 		// application
