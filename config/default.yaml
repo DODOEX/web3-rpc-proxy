@@ -41,26 +41,85 @@ logger:
 #   enable: true # Enable tenants rate limit
 
 # Data caching
+evm:
+  cache_results_duration: &evm_cache_results_duration
+    net_version: 1h
+    eth_chainId: 1h
+    eth_getTransactionCount: 5m
+    eth_getBlockTransactionCountByNumber: 5m
+    eth_getBlockTransactionCountByHash: 5m
+    eth_getUncleCountByBlockHash: 5m
+    eth_getUncleCountByBlockNumber: 5m
+    eth_blockNumber: 0.1s
+    eth_getBlockByNumber: 10m
+    eth_getBlockByHash: 10m
+    eth_getTransactionByHash: 10m
+    eth_getTransactionByBlockHashAndIndex: 10m
+    eth_getTransactionByBlockNumberAndIndex: 10m
+    eth_getTransactionReceipt: 10m
+    eth_getLogs: 1m
+    eth_getUncleByBlockHashAndIndex: 10m
+    eth_getUncleByBlockNumberAndIndex: 10m
+
+svm:
+  cache_results_duration: 
+    getSlotLeaders: 1m
+    getBlocks: 1m
+    getMultipleAccounts: 1m
+    getHealth: 1m
+    getSupply: 1m
+  
+    getBalance: 5m
+    getBlockCommitment: 5m
+    getAccountInfo: 5m
+    getTokenAccountBalance: 5m
+    getTokenAccountsByOwner: 5m
+    getTokenAccountsByMint: 5m
+    getSignaturesForAddress: 5m
+    getFeeCalculatorForBlockhash: 5m
+    getRecentPerformanceSamples: 5m
+    getSlotLeader: 5m
+    getTransactionCount: 5m
+    getProgramAccounts: 5m
+    getInflationReward: 5m
+    getVoteAccounts: 5m
+    getTokenLargestAccounts: 5m
+    getBlockHeight: 5m
+    getFeeForMessage: 5m
+    getRecentPrioritizationFees: 5m
+    getSignatureStatuses: 5m
+    getTokenAccountsByDelegate: 5m
+
+    getBlock: 10m
+    getTransaction: 10m
+    getBlockProduction: 10m
+    getBlockTime: 10m
+    getBlocksWithLimit: 10m
+    getEpochInfo: 10m
+    getFirstAvailableBlock: 10m
+    getClusterNodes: 10m
+    getInflationGovernor: 10m
+    getInflationRate: 10m
+    getLedgerSize: 10m
+    getMinimumBalanceForRentExemption: 10m
+    getGenesisHash: 10m
+    getTokenSupply: 10m
+    getEpochSchedule: 10m
+    getAccountRentExemption: 10m
+    getTokenAccountsByOwnerWithLimit: 10m
+    getHighestSnapshotSlot: 10m
+    getIdentity: 10m
+    getLeaderSchedule: 10m
+    getMaxRetransmitSlot: 10m
+    getMaxShredInsertSlot: 10m
+    getStakeMinimumDelegation: 10m
+    minimumLedgerSlot: 10m
+
+    getVersion: 1h
 cache:
   results:
-    expiry_durations:
-      net_version: 24h
-      eth_chainId: 24h
-      eth_getTransactionCount: 5m
-      eth_getBlockTransactionCountByNumber: 5m
-      eth_getBlockTransactionCountByHash: 5m
-      eth_getUncleCountByBlockHash: 5m
-      eth_getUncleCountByBlockNumber: 5m
-      eth_blockNumber: 0.1s
-      eth_getBlockByNumber: 10m
-      eth_getBlockByHash: 10m
-      eth_getTransactionByHash: 10m
-      eth_getTransactionByBlockHashAndIndex: 10m
-      eth_getTransactionByBlockNumberAndIndex: 10m
-      eth_getTransactionReceipt: 10m
-      eth_getLogs: 10m
-      eth_getUncleByBlockHashAndIndex: 10m
-      eth_getUncleByBlockNumberAndIndex: 10m
+    # ! Deprecate on next version
+    expiry_durations: *evm_cache_results_duration
 
 # Provider configuration, it will auto load external endpoints
 # providers:
