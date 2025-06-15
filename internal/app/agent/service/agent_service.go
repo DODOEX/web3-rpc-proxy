@@ -169,7 +169,7 @@ func (a agentService) Call(ctx context.Context, rc reqctx.Reqctxs, adapter endpo
 		return nil, err
 	}
 
-	if isReturnOneResult(results) {
+	if isReturnOneResult(_results) {
 		return sonic.Marshal(_results[0])
 	}
 
