@@ -12,7 +12,7 @@ import (
 )
 
 type CacheEntry struct {
-	V          any
+	V          []byte
 	E          int64
 	Compressed bool
 }
@@ -167,9 +167,12 @@ func (c *GlobalCache) Set(key string, value []byte, ttls ...time.Duration) error
 	return nil
 }
 
-func (c *GlobalCache) get(k string) (CacheEntry, error) {
-	v := CacheEntry{}
+func (c *GlobalCache) get(k string) (*CacheEntry, error) {
+	v := &CacheEntry{}
 	data, err := c.cache.Get(k)
+	if err != nil && err.Error() == "Entry not found" {
+		return nil, nil
+	}
 	if err == nil {
 		err = sonic.Unmarshal(data, v)
 	}
@@ -181,19 +184,22 @@ func (c *GlobalCache) Get(key string) (value []byte, found bool, err error) {
 	if err != nil {
 		return nil, false, err
 	}
-	if time.UnixMilli(entry.E).After(time.Now()) {
+	if entry == nil {
+		return nil, false, nil
+	}
+	if time.UnixMilli(entry.E).Before(time.Now()) {
 		go c.cache.Delete(key)
 		return nil, true, nil
 	}
 	// uncompress
 	if entry.Compressed {
-		_v, _err := helpers.Decompress(entry.V.([]byte))
+		_v, _err := helpers.Decompress(entry.V)
 		if _err != nil {
 			return nil, true, _err
 		}
 		return _v, true, nil
 	}
-	return entry.V.([]byte), true, nil
+	return entry.V, true, nil
 }
 
 func (c *GlobalCache) Del(k string) error {
